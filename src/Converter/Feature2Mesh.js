@@ -132,6 +132,7 @@ function featureToPoint(feature, options) {
         vertices = new Float32Array(ptsIn);
     }
     const globals = { point: true };
+
     for (const geometry of feature.geometries) {
         const context = { globals, properties: () => geometry.properties };
         const style = feature.style.drawingStylefromContext(context);
@@ -154,8 +155,9 @@ function featureToPoint(feature, options) {
 
     pointMaterial.size = feature.style.point.radius;
 
-    return new THREE.Points(geom, pointMaterial);
+    return new THREE.InstancedMesh(geom, pointMaterial);
 }
+
 
 var lineMaterial = new THREE.LineBasicMaterial();
 function featureToLine(feature, options) {
@@ -393,6 +395,70 @@ function featureToExtrudedPolygon(feature, options) {
     return mesh;
 }
 
+function featureToLight(feature) {
+    const ptsIn = feature.vertices;
+    const count = feature.geometries.length;
+
+    var group = new THREE.Group();
+    const sphere = new THREE.SphereGeometry(10, 16, 16);
+    sphere.computeFaceNormals();
+    sphere.computeVertexNormals();
+
+
+    for (let i = 0; i < 100; i += 3) {
+        // var light = new THREE.PointLight(0xff0000, 1, 0);
+        // light.castShadow = true;
+
+        var light = new THREE.SpotLight(0xff0000);
+
+        light.castShadow = true;
+
+        light.shadow.mapSize.width = 1024;
+        light.shadow.mapSize.height = 1024;
+
+        light.shadow.camera.near = 500;
+        light.shadow.camera.far = 4000;
+        light.shadow.camera.fov = 30;
+
+        light.position.set(ptsIn[i], ptsIn[i + 1], ptsIn[i + 2] + 20);
+        light.add(new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0xff0000 })));
+        //  var pointLightHelper = new THREE.PointLightHelper(light, 10);
+        // group.add(pointLightHelper);
+
+        var mesh = new THREE.Mesh(sphere, new THREE.MeshPhongMaterial({ color: 0xffffff, dithering: true }));
+
+        mesh.position.set(ptsIn[i] + 30, ptsIn[i + 1] + 30, ptsIn[i + 2] + 30);
+
+        group.add(mesh);
+
+        group.add(light);
+    }
+
+    return group;
+}
+
+
+function featureToModel(feature) {
+    const ptsIn = feature.vertices;
+    const count = feature.geometries.length;
+    const material = new THREE.MeshBasicMaterial();
+    const geom = feature.style.model.object;
+    const color = feature.style.model.color;
+
+    var mesh = new THREE.InstancedMesh(geom, material, count);
+    var index = 0;
+    for (let i = 0; i < count; i += 3) {
+        const mat = new THREE.Matrix4();
+        mat.setPosition(ptsIn[i], ptsIn[i + 1], ptsIn[i + 2]);
+        mesh.setColorAt(index, new THREE.Color(`hsl(125, ${Math.trunc((Math.random() + 0.3) * 100)}%, 50%)`));
+        mesh.setMatrixAt(index++, mat);
+    }
+    mesh.instanceColor.needsUpdate = true;
+    mesh.instanceMatrix.needsUpdate = true;
+
+    return mesh;
+}
+
 /**
  * Convert a [Feature]{@link Feature} to a Mesh
  *
@@ -404,28 +470,50 @@ function featureToMesh(feature, options) {
     if (!feature.vertices) {
         return;
     }
-
+    // eslint-disable-next-line no-console
+    console.log('featureToMesh');
     var mesh;
     switch (feature.type) {
         case FEATURE_TYPES.POINT:
-            mesh = featureToPoint(feature, options);
+            if (feature.style.model.object !== undefined) {
+                mesh = featureToModel(feature, options);
+            } else if (feature.style.light) {
+                // eslint-disable-next-line no-console
+                console.log('Light');
+                mesh = featureToLight(feature, options);
+            } else {
+                mesh = featureToPoint(feature, options);
+                mesh.material.vertexColors = true;
+                mesh.material.color = new THREE.Color(0xffffff);
+            }
             break;
         case FEATURE_TYPES.LINE:
             mesh = featureToLine(feature, options);
+            mesh.material.vertexColors = true;
+            mesh.material.color = new THREE.Color(0xffffff);
             break;
         case FEATURE_TYPES.POLYGON:
             if (feature.style.fill.extrusion_height) {
                 mesh = featureToExtrudedPolygon(feature, options);
+                mesh.material.vertexColors = true;
+                mesh.material.color = new THREE.Color(0xffffff);
             } else {
                 mesh = featureToPolygon(feature, options);
+                mesh.material.vertexColors = true;
+                mesh.material.color = new THREE.Color(0xffffff);
             }
             break;
         default:
     }
 
     // set mesh material
-    mesh.material.vertexColors = true;
-    mesh.material.color = new THREE.Color(0xffffff);
+
+    /*
+    if (!feature.style.model) {
+        mesh.material.vertexColors = false;
+        mesh.material.color = new THREE.Color(0xffffff);
+    }
+    */
 
     mesh.feature = feature;
     mesh.position.z = feature.altitude.min - options.GlobalZTrans;

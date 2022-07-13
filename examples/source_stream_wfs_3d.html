@@ -127,12 +127,46 @@
             view.addLayer(lyonTclBusLayer);
 
             function colorBuildings(properties) {
+                
+                if(properties.nature != undefined) {
+                    switch (properties.nature) {
+                        case "Bâtiment sportif":
+                            return color.set(0xffffff);
+                            break;
+                        case "Bâtiment commercial":
+                            return color.set(0x00ffff);
+                            break;
+                        case "Bâtiment religieux":
+                            return color.set(0x000000);
+                            break;
+                        case "Eglise":
+                            return color.set(0x000000);
+                            break;
+                        case "Gare":
+                            return color.set(0xffff00);
+                            break;
+                        case "Bâtiment industriel":
+                            return color.set(0xff5555);
+                            break;
+                    }
+                }
+                else {
+                    if(properties.origin_bat != undefined && properties.origin_bat != "Cadastre") {
+                        console.log(properties.origin_bat);
+                        return color.set(0x0ff00);
+                    }
+                    else {
+                        return color.set(0xeeeeee);
+                    }
+                    
+                }
+/*
                 if (properties.geojson.id.indexOf('bati_remarquable') === 0) {
                     return color.set(0x5555ff);
                 } else if (properties.geojson.id.indexOf('bati_industriel') === 0) {
                     return color.set(0xff5555);
                 }
-                return color.set(0xeeeeee);
+                return color.set(0xeeeeee);*/
             }
 
             function altitudeBuildings(properties) {
