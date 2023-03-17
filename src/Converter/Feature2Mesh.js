@@ -46,6 +46,19 @@ function getIntArrayFromSize(data, size) {
     }
 }
 
+function separateMeshes(object3D) {
+    var meshes = [];
+
+    object3D.traverse((element) => {
+        if (element instanceof THREE.Mesh) {
+            element.geometry.applyMatrix4(element.matrix);
+            meshes.push(element);
+        }
+    });
+
+    return meshes;
+}
+
 /**
  * Convert coordinates to vertices positionned at a given altitude
  *
@@ -395,68 +408,51 @@ function featureToExtrudedPolygon(feature, options) {
     return mesh;
 }
 
-function featureToLight(feature) {
-    const ptsIn = feature.vertices;
-    const count = feature.geometries.length;
-
-    var group = new THREE.Group();
-    const sphere = new THREE.SphereGeometry(10, 16, 16);
-    sphere.computeFaceNormals();
-    sphere.computeVertexNormals();
-
-
-    for (let i = 0; i < 100; i += 3) {
-        // var light = new THREE.PointLight(0xff0000, 1, 0);
-        // light.castShadow = true;
-
-        var light = new THREE.SpotLight(0xff0000);
-
-        light.castShadow = true;
-
-        light.shadow.mapSize.width = 1024;
-        light.shadow.mapSize.height = 1024;
-
-        light.shadow.camera.near = 500;
-        light.shadow.camera.far = 4000;
-        light.shadow.camera.fov = 30;
-
-        light.position.set(ptsIn[i], ptsIn[i + 1], ptsIn[i + 2] + 20);
-        light.add(new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: 0xff0000 })));
-        //  var pointLightHelper = new THREE.PointLightHelper(light, 10);
-        // group.add(pointLightHelper);
-
-        var mesh = new THREE.Mesh(sphere, new THREE.MeshPhongMaterial({ color: 0xffffff, dithering: true }));
-
-        mesh.position.set(ptsIn[i] + 30, ptsIn[i + 1] + 30, ptsIn[i + 2] + 30);
-
-        group.add(mesh);
-
-        group.add(light);
-    }
-
-    return group;
-}
-
-
-function featureToModel(feature) {
-    const ptsIn = feature.vertices;
-    const count = feature.geometries.length;
-    const material = new THREE.MeshBasicMaterial();
-    const geom = feature.style.model.object;
-    const color = feature.style.model.color;
-
-    var mesh = new THREE.InstancedMesh(geom, material, count);
+/**
+ * Created Instanced object from on mesh
+ *
+ * @param {THREE.MESH} mesh Model 3D to instanciate
+ * @param {*} count number of instances to create (int)
+ * @param {*} ptsIn positions of instanced (array double)
+ * @returns {THREE.InstancedMesh} Instanced mesh
+ */
+function createInstancedMesh(mesh, count, ptsIn) {
+    var instancedMesh = new THREE.InstancedMesh(mesh.geometry, mesh.material, count);
     var index = 0;
     for (let i = 0; i < count; i += 3) {
         const mat = new THREE.Matrix4();
         mat.setPosition(ptsIn[i], ptsIn[i + 1], ptsIn[i + 2]);
-        mesh.setColorAt(index, new THREE.Color(`hsl(125, ${Math.trunc((Math.random() + 0.3) * 100)}%, 50%)`));
-        mesh.setMatrixAt(index++, mat);
+        instancedMesh.setMatrixAt(index, mat);
+        index++;
     }
-    mesh.instanceColor.needsUpdate = true;
-    mesh.instanceMatrix.needsUpdate = true;
 
-    return mesh;
+    instancedMesh.instanceMatrix.needsUpdate = true;
+
+    return instancedMesh;
+}
+
+/**
+ * Convert a [Feature]{@link Feature} to a Instanced 3d Model
+ *
+ * @param {Object} feature
+ * @returns {THREE.Mesh} mesh or GROUP of THREE.InstancedMesh
+ */
+function featureTo3DModel(feature) {
+    const ptsIn = feature.vertices;
+    const count = feature.geometries.length;
+    const modelObject = feature.style.model.object;
+
+    if (modelObject instanceof THREE.Mesh) {
+        return createInstancedMesh(modelObject, count, ptsIn);
+    } else if (modelObject instanceof THREE.Object3D) {
+        const group = new THREE.Group();
+        // Get independent meshes from more complexe object
+        var meshes = separateMeshes(modelObject);
+        meshes.forEach(mesh => group.add(createInstancedMesh(mesh, count, ptsIn)));
+        return group;
+    } else {
+        console.error('Format not supported');
+    }
 }
 
 /**
@@ -464,23 +460,18 @@ function featureToModel(feature) {
  *
  * @param {Feature} feature - the feature to convert
  * @param {Object} options - options controlling the conversion
- * @return {THREE.Mesh} mesh
+ * @return {THREE.Mesh} mesh or GROUP of THREE.InstancedMesh
  */
 function featureToMesh(feature, options) {
     if (!feature.vertices) {
         return;
     }
-    // eslint-disable-next-line no-console
-    console.log('featureToMesh');
+
     var mesh;
     switch (feature.type) {
         case FEATURE_TYPES.POINT:
-            if (feature.style.model.object !== undefined) {
-                mesh = featureToModel(feature, options);
-            } else if (feature.style.light) {
-                // eslint-disable-next-line no-console
-                console.log('Light');
-                mesh = featureToLight(feature, options);
+            if (feature.style.model) {
+                mesh = featureTo3DModel(feature, options);
             } else {
                 mesh = featureToPoint(feature, options);
                 mesh.material.vertexColors = true;
@@ -505,15 +496,6 @@ function featureToMesh(feature, options) {
             break;
         default:
     }
-
-    // set mesh material
-
-    /*
-    if (!feature.style.model) {
-        mesh.material.vertexColors = false;
-        mesh.material.color = new THREE.Color(0xffffff);
-    }
-    */
 
     mesh.feature = feature;
     mesh.position.z = feature.altitude.min - options.GlobalZTrans;
@@ -567,7 +549,6 @@ export default {
 
             const group = new THREE.Group();
             options.GlobalZTrans = collection.center.z;
-
             features.forEach(feature => group.add(featureToMesh(feature, options)));
 
             group.quaternion.copy(collection.quaternion);
