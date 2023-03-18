@@ -3,7 +3,7 @@ import LayerUpdateState from 'Layer/LayerUpdateState';
 import handlingError from 'Process/handlerNodeError';
 
 export const SIZE_TEXTURE_TILE = 256;
-export const SIZE_DIAGONAL_TEXTURE = Math.pow(2 * (SIZE_TEXTURE_TILE * SIZE_TEXTURE_TILE), 0.5);
+export const SIZE_DIAGONAL_TEXTURE = (2 * (SIZE_TEXTURE_TILE * SIZE_TEXTURE_TILE)) ** 0.5;
 
 function materialCommandQueuePriorityFunction(material) {
     // We know that 'node' is visible because commands can only be
@@ -84,7 +84,7 @@ export function updateLayeredMaterialNodeImagery(context, layer, node, parent) {
             nodeLayer = layer.setupRasterNode(node);
 
             // Init the node by parent
-            const parentLayer = parent.material && parent.material.getLayer(layer.id);
+            const parentLayer = parent.material?.getLayer(layer.id);
             nodeLayer.initFromParent(parentLayer, extentsDestination);
         }
 
@@ -182,7 +182,7 @@ export function updateLayeredMaterialNodeElevation(context, layer, node, parent)
     if (node.layerUpdateState[layer.id] === undefined) {
         node.layerUpdateState[layer.id] = new LayerUpdateState();
 
-        const parentLayer = parent.material && parent.material.getLayer(layer.id);
+        const parentLayer = parent.material?.getLayer(layer.id);
         nodeLayer.initFromParent(parentLayer, extentsDestination);
 
         if (nodeLayer.level >= layer.source.zoom.min) {
@@ -237,10 +237,10 @@ export function updateLayeredMaterialNodeElevation(context, layer, node, parent)
 
 export function removeLayeredMaterialNodeLayer(layerId) {
     return function removeLayeredMaterialNodeLayer(node) {
-        if (node.material && node.material.removeLayer) {
+        if (node.material?.removeLayer) {
             node.material.removeLayer(layerId);
             if (node.material.elevationLayerIds[0] == layerId) {
-                node.setBBoxZ(0, 0);
+                node.setBBoxZ({ min: 0, max: 0 });
             }
         }
         if (node.layerUpdateState && node.layerUpdateState[layerId]) {

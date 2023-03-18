@@ -15,8 +15,20 @@ function _extendBuffer(feature, size) {
     }
 }
 
+function _setGeometryValues(geom, feature, long, lat, alt, normal) {
+    if (feature.normals) {
+        normal.toArray(feature.normals, feature._pos);
+    }
+
+    feature._pushValues(long, lat, alt);
+
+    if (geom.size == 3) {
+        geom.altitude.min = Math.min(geom.altitude.min, alt);
+        geom.altitude.max = Math.max(geom.altitude.max, alt);
+    }
+}
+
 const coordOut = new Coordinates('EPSG:4326', 0, 0, 0);
-const defaultNormal = new THREE.Vector3(0, 0, 1);
 
 export const FEATURE_TYPES = {
     POINT: 0,
@@ -28,17 +40,18 @@ const typeToStyleProperty = ['point', 'stroke', 'fill'];
 
 /**
  * @property {string} crs - The CRS to convert the input coordinates to.
- * @property {Extent|boolean} [filteringExtent=undefined] - Optional filter to reject
- * features outside of extent. Extent filetring is file extent if filteringExtent is true.
- * @property {boolean} [buildExtent=false] - If true the geometry will
- * have an extent property containing the area covered by the geometry.
- * True if the layer does not inherit from {@link GeometryLayer}.
- * @property {string} forcedExtentCrs - force feature extent crs if buildExtent is true.
- * @property {function} [filter] - Filter function to remove features
- * @property {boolean} [mergeFeatures=true] - If true all geometries are merged by type and multi-type
  * @property {string} [structure='2d'] - data structure type : 2d or 3d.
  * If the structure is 3d, the feature have 3 dimensions by vertices positions and
  * a normal for each vertices.
+ * @property {Extent|boolean} [filteringExtent=undefined] - Optional filter to reject
+ * features outside of extent. Extent filtering is file extent if filteringExtent is true.
+ * @property {boolean} [buildExtent] - If true the geometry will
+ * have an extent property containing the area covered by the geometry.
+ * Default value is false if `structure` parameter is set to '3d', and true otherwise.
+ * True if the layer does not inherit from {@link GeometryLayer}.
+ * @property {string} forcedExtentCrs - force feature extent crs if buildExtent is true.
+ * @property {function} [filter] - Filter function to remove features
+ * @property {boolean} [mergeFeatures=true] - If true all geometries are merged by type and multi-type.
  * @property {Style} style - The style to inherit when creating
  * style for all new features.
  *
@@ -56,6 +69,7 @@ export class FeatureBuildingOptions {}
  * anything specified in the GeoJSON under the `properties` property.
  */
 export class FeatureGeometry {
+    #currentExtent;
     /**
      * @param {Feature} feature geometry
      */
@@ -65,7 +79,7 @@ export class FeatureGeometry {
         this.size = feature.size;
         if (feature.extent) {
             this.extent = defaultExtent(feature.extent.crs);
-            this._currentExtent = defaultExtent(feature.extent.crs);
+            this.#currentExtent = defaultExtent(feature.extent.crs);
         }
         this.altitude = {
             min: Infinity,
@@ -86,7 +100,7 @@ export class FeatureGeometry {
             this.indices[last].offset + this.indices[last].count :
             feature.vertices.length / this.size;
         this.indices.push({ offset, count, extent });
-        this._currentExtent = extent;
+        this.#currentExtent = extent;
         _extendBuffer(feature, count);
     }
 
@@ -102,10 +116,10 @@ export class FeatureGeometry {
         const offset = last > -1 ?
             this.indices[last].offset + this.indices[last].count :
             feature.vertices.length / this.size - count;
-        this.indices.push({ offset, count, extent: this._currentExtent });
+        this.indices.push({ offset, count, extent: this.#currentExtent });
         if (this.extent) {
-            this.extent.union(this._currentExtent);
-            this._currentExtent = defaultExtent(this.extent.crs);
+            this.extent.union(this.#currentExtent);
+            this.#currentExtent = defaultExtent(this.extent.crs);
         }
     }
 
@@ -113,35 +127,29 @@ export class FeatureGeometry {
         const last = this.indices.length - 1;
         return this.indices[last];
     }
+
+    baseAltitude(feature, coordinates) {
+        const base_altitude = feature.style[typeToStyleProperty[feature.type]].base_altitude || 0;
+        return isNaN(base_altitude) ? base_altitude(this.properties, coordinates) : base_altitude;
+    }
+
     /**
      * Push new coordinates in vertices buffer.
      * @param {Coordinates} coordIn The coordinates to push.
      * @param {Feature} feature - the feature containing the geometry
      */
     pushCoordinates(coordIn, feature) {
-        if (this.size == 3) {
-            // set altitude from context
-            const base_altitude = feature.style[typeToStyleProperty[feature.type]].base_altitude;
-            coordIn.z = isNaN(base_altitude) ? base_altitude(this.properties, coordIn) : base_altitude;
-        }
+        coordIn.z = this.baseAltitude(feature, coordIn);
 
         coordIn.as(feature.crs, coordOut);
 
         feature.transformToLocalSystem(coordOut);
 
-        if (feature.normals) {
-            coordOut.geodesicNormal.toArray(feature.normals, feature._pos);
-        }
+        _setGeometryValues(this, feature, coordOut.x, coordOut.y, coordOut.z, coordOut.geodesicNormal);
 
-        feature._pushValues(coordOut.x, coordOut.y, coordOut.z);
         // expand extent if present
-        if (this._currentExtent) {
-            this._currentExtent.expandByCoordinates(feature.useCrsOut ? coordOut : coordIn);
-        }
-
-        if (this.size == 3) {
-            this.altitude.min = Math.min(this.altitude.min, coordIn.z);
-            this.altitude.max = Math.max(this.altitude.max, coordIn.z);
+        if (this.#currentExtent) {
+            this.#currentExtent.expandByCoordinates(feature.useCrsOut ? coordOut : coordIn);
         }
     }
 
@@ -153,23 +161,16 @@ export class FeatureGeometry {
      * @param {Feature} feature - the feature containing the geometry
      * @param {number} long The longitude coordinate.
      * @param {number} lat The latitude coordinate.
-     * @param {number} [alt=0] The altitude coordinate.
-     * @param {THREE.Vector3} [normal=THREE.Vector3(0,0,1)] the normal on coordinates.
+     * @param {THREE.Vector3} [normal] the normal on coordinates (only for `EPSG:4978` projection).
      */
-    pushCoordinatesValues(feature, long, lat, alt = 0, normal = defaultNormal) {
-        if (feature.normals) {
-            normal.toArray(feature.normals, feature._pos);
-        }
+    pushCoordinatesValues(feature, long, lat, normal) {
+        const altitude = this.baseAltitude(feature);
 
-        feature._pushValues(long, lat, alt);
+        _setGeometryValues(this, feature, long, lat, altitude, normal);
+
         // expand extent if present
-        if (this._currentExtent) {
-            this._currentExtent.expandByValuesCoordinates(long, lat);
-        }
-
-        if (this.size == 3) {
-            this.altitude.min = Math.min(this.altitude.min, alt);
-            this.altitude.max = Math.max(this.altitude.max, alt);
+        if (this.#currentExtent) {
+            this.#currentExtent.expandByValuesCoordinates(long, lat);
         }
     }
 
@@ -222,6 +223,8 @@ function push3DValues(value0, value1, value2 = 0) {
  * @property {number[]} normals - All the normals of the Feature.
  * @property {number} size - the number of values of the array that should be associated with a coordinates.
  * The size is 3 with altitude and 2 without altitude.
+ * @property {boolean} hasRawElevationData - indicates if the geographic coordinates, from original source, has an elevation,
+ * the coordinates has a third coordinate.
  * @property {string} crs - Geographic or Geocentric coordinates system.
  * @property {FeatureGeometry[]} geometries - An array containing all {@link
  * FeatureGeometry}.
@@ -244,7 +247,9 @@ class Feature {
         this.vertices = [];
         this.crs = collection.crs;
         this.size = collection.size;
-        this.normals = collection.size == 3 ? [] : undefined;
+        this.normals = collection.crs == 'EPSG:4978' ? [] : undefined;
+        this.hasRawElevationData = false;
+
         this.transformToLocalSystem = collection.transformToLocalSystem.bind(collection);
         if (collection.extent) {
             // this.crs is final crs projection, is out projection.
@@ -352,16 +357,17 @@ const alignYtoEast = new THREE.Quaternion();
  */
 
 export class FeatureCollection extends THREE.Object3D {
+    #transformToLocalSystem = transformToLocalSystem2D;
+    #setLocalSystem = doNothing;
     /**
      * @param      {FeatureBuildingOptions|Layer}  options  The building options .
      */
     constructor(options) {
         super();
         this.isFeatureCollection = true;
-        this.crs = CRS.formatToEPSG(options.crs);
+        this.crs = CRS.formatToEPSG(options.accurate || !options.source?.crs ? options.crs : options.source.crs);
         this.features = [];
         this.mergeFeatures = options.mergeFeatures === undefined ? true : options.mergeFeatures;
-        this.extent = options.buildExtent ? defaultExtent(options.forcedExtentCrs || this.crs) : undefined;
         this.size = options.structure == '3d' ? 3 : 2;
         this.filterExtent = options.filterExtent;
         this.style = options.style;
@@ -370,18 +376,19 @@ export class FeatureCollection extends THREE.Object3D {
         this.center = new Coordinates('EPSG:4326', 0, 0);
 
         if (this.size == 2) {
-            this._setLocalSystem = (center) => {
+            this.extent = options.buildExtent === false ? undefined : defaultExtent(options.forcedExtentCrs || this.crs);
+            this.#setLocalSystem = (center) => {
                 // set local system center
-                center.as('EPSG:4326', this.center);
+                center.as(this.crs, this.center);
 
                 // set position to local system center
                 this.position.copy(center);
                 this.updateMatrixWorld();
-                this._setLocalSystem = doNothing;
+                this.#setLocalSystem = doNothing;
             };
-            this._transformToLocalSystem = transformToLocalSystem2D;
         } else {
-            this._setLocalSystem = (center) => {
+            this.extent = options.buildExtent ? defaultExtent(options.forcedExtentCrs || this.crs) : undefined;
+            this.#setLocalSystem = (center) => {
                 // set local system center
                 center.as('EPSG:4326', this.center);
 
@@ -399,9 +406,9 @@ export class FeatureCollection extends THREE.Object3D {
                 this.normalMatrix.getNormalMatrix(this.matrix);
                 this.normalMatrixInverse = new THREE.Matrix3().copy(this.normalMatrix).invert();
 
-                this._setLocalSystem = doNothing;
+                this.#setLocalSystem = doNothing;
             };
-            this._transformToLocalSystem = transformToLocalSystem3D;
+            this.#transformToLocalSystem = transformToLocalSystem3D;
         }
 
         this.altitude = {
@@ -419,8 +426,8 @@ export class FeatureCollection extends THREE.Object3D {
      * @returns {Coordinates} The coordinates in local system
      */
     transformToLocalSystem(coordinates) {
-        this._setLocalSystem(coordinates);
-        return this._transformToLocalSystem(coordinates, this);
+        this.#setLocalSystem(coordinates);
+        return this.#transformToLocalSystem(coordinates, this);
     }
 
     /**
@@ -518,6 +525,8 @@ export class FeatureCollection extends THREE.Object3D {
         ref.normals = feature.normals;
         ref.size = feature.size;
         ref.vertices = feature.vertices;
+        ref.altitude.min = feature.altitude.min;
+        ref.altitude.max = feature.altitude.max;
         ref._pos = feature._pos;
         this.features.push(ref);
         return ref;

@@ -1,11 +1,12 @@
 const conf = {
-    version: '2.35.0',
+    version: '2.39.0',
 };
 export const REVISION = conf.version;
 
 // Geographic tools
 export { default as Extent } from 'Core/Geographic/Extent';
 export { default as Coordinates } from 'Core/Geographic/Coordinates';
+export { default as GeoidGrid } from 'Core/Geographic/GeoidGrid';
 export { default as CRS } from 'Core/Geographic/Crs';
 
 export { default as Ellipsoid, ellipsoidSizes } from 'Core/Math/Ellipsoid';
@@ -60,6 +61,7 @@ export { default as GlobeLayer } from 'Core/Prefab/Globe/GlobeLayer';
 export { default as PlanarLayer } from 'Core/Prefab/Planar/PlanarLayer';
 export { default as LabelLayer } from 'Layer/LabelLayer';
 export { default as EntwinePointTileLayer } from 'Layer/EntwinePointTileLayer';
+export { default as GeoidLayer } from 'Layer/GeoidLayer';
 
 // Sources provided by default in iTowns
 // A custom source should at least implements Source
@@ -74,6 +76,7 @@ export { default as VectorTilesSource } from 'Source/VectorTilesSource';
 export { default as OrientedImageSource } from 'Source/OrientedImageSource';
 export { default as PotreeSource } from 'Source/PotreeSource';
 export { default as C3DTilesSource } from 'Source/C3DTilesSource';
+export { default as C3DTilesIonSource } from 'Source/C3DTilesIonSource';
 export { default as EntwinePointTileSource } from 'Source/EntwinePointTileSource';
 
 // Parsers provided by default in iTowns
@@ -85,6 +88,9 @@ export { default as KMLParser } from 'Parser/KMLParser';
 export { default as CameraCalibrationParser } from 'Parser/CameraCalibrationParser';
 export { default as ShapefileParser } from 'Parser/ShapefileParser';
 export { default as LASParser } from 'Parser/LASParser';
+export { default as ISGParser } from 'Parser/ISGParser';
+export { default as GDFParser } from 'Parser/GDFParser';
+export { default as GTXParser } from 'Parser/GTXParser';
 export { enableDracoLoader, glTFLoader, legacyGLTFLoader } from 'Parser/B3dmParser';
 
 // 3D Tiles classes and extensions

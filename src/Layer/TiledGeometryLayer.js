@@ -66,6 +66,8 @@ class TiledGeometryLayer extends GeometryLayer {
         super(id, object3d, config);
 
         this.isTiledGeometryLayer = true;
+        // TODO : this should be add in a preprocess method specific to GeoidLayer.
+        this.object3d.geoidHeight = 0;
 
         this.protocol = 'tile';
 
@@ -270,7 +272,7 @@ class TiledGeometryLayer extends GeometryLayer {
 
     // eslint-disable-next-line
     culling(node, camera) {
-        return !camera.isBox3Visible(node.obb.box3D, node.obb.matrixWorld);
+        return !camera.isBox3Visible(node.obb.box3D, node.matrixWorld);
     }
 
     /**
@@ -405,7 +407,7 @@ class TiledGeometryLayer extends GeometryLayer {
                 const offsetScale = nodeLayer.offsetScales[0];
                 const ratio = offsetScale.z;
                 // ratio is node size / texture size
-                if (ratio < 1 / Math.pow(2, this.maxDeltaElevationLevel)) {
+                if (ratio < 1 / 2 ** this.maxDeltaElevationLevel) {
                     return false;
                 }
             }

@@ -25,6 +25,16 @@ describe('GeoJsonParser', function () {
             assert.ok(collection.features[0].vertices.every((v, i) => ((i + 1) % 3) != 0 || (v + collection.position.z) != 0));
         }));
 
+    it('should detect if there is the raw elevation data', () =>
+        parse(gpx).then((collection) => {
+            assert.ok(collection.features[0].hasRawElevationData);
+        }));
+
+    it('should detect if there is not the raw elevation data', () =>
+        parse(holes).then((collection) => {
+            assert.ok(!collection.features[0].hasRawElevationData);
+        }));
+
     it('should return an empty collection', () =>
         GeoJsonParser.parse(holes, {
             in: {
@@ -32,7 +42,6 @@ describe('GeoJsonParser', function () {
             },
             out: {
                 crs: 'EPSG:3946',
-                buildExtent: true,
                 filteringExtent: new Extent('EPSG:3946', 10, 20, 10, 20),
             },
         }).then((collection) => {

@@ -42,7 +42,7 @@ class ElevationLayer extends RasterLayer {
      * // Create an ElevationLayer
      * const elevation = new ElevationLayer('IGN_MNT', {
      *      source: new WMTSSource({
-     *          "url": "https://wxs.ign.fr/3ht7xcw6f7nciopo16etuqp2/geoportail/wmts",
+     *          "url": "https://wxs.ign.fr/altimetrie/geoportail/wmts",
      *           "crs": "EPSG:4326",
      *           "format": "image/x-bil;bits=32",
      *           "name": "ELEVATION.ELEVATIONGRIDCOVERAGE",
@@ -55,21 +55,7 @@ class ElevationLayer extends RasterLayer {
     constructor(id, config = {}) {
         super(id, config);
         this.isElevationLayer = true;
-
-        // This is used to add a factor needed to color texture
-        let baseScale = 1.0;
-        if (this.useColorTextureElevation) {
-            baseScale = this.colorTextureElevationMaxZ - this.colorTextureElevationMinZ;
-        }
-
-        this.defineLayerProperty('scale', this.scale || 1.0, (self) => {
-            self.parent.object3d.traverse((obj) => {
-                if (obj.layer == self.parent && obj.material) {
-                    obj.material.setElevationScale(self.scale * baseScale);
-                    obj.obb.updateScaleZ(self.scale);
-                }
-            });
-        });
+        this.defineLayerProperty('scale', this.scale || 1.0);
     }
 
     /**
@@ -85,11 +71,20 @@ class ElevationLayer extends RasterLayer {
         node.material.addLayer(rasterElevationNode);
         node.material.setSequenceElevation(this.id);
         // bounding box initialisation
-        const updateBBox = () => node.setBBoxZ(rasterElevationNode.min, rasterElevationNode.max, this.scale);
+        const updateBBox = () => node.setBBoxZ({
+            min: rasterElevationNode.min, max: rasterElevationNode.max, scale: this.scale,
+        });
         updateBBox();
 
         // listen elevation updating
-        rasterElevationNode.addEventListener('updatedElevation', updateBBox);
+        rasterElevationNode.addEventListener('rasterElevationLevelChanged', updateBBox);
+
+        // listen scaling elevation updating
+        this.addEventListener('scale-property-changed', updateBBox);
+        // remove scaling elevation updating if node is removed
+        node.addEventListener('dispose', () => {
+            this.removeEventListener('scale-property-changed', updateBBox);
+        });
 
         return rasterElevationNode;
     }

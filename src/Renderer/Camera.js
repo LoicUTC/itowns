@@ -82,6 +82,9 @@ function updatePreSse(camera, height, fov) {
  * @property    {number}    _preSSE         The precomputed constant part of the screen space error.
  */
 class Camera {
+    #_viewMatrixNeedsUpdate = true;
+    #_viewMatrix = new THREE.Matrix4();
+
     /**
      * @param   {string}                crs                                     The camera's coordinate projection system.
      * @param   {number}                width                                   The width (in pixels) of the view the
@@ -115,12 +118,10 @@ class Camera {
                     break;
             }
         }
-        this.camera3D.aspect = this.camera3D.aspect !== undefined ? this.camera3D.aspect : 1;
+        this.camera3D.aspect = this.camera3D.aspect ?? 1;
 
-        this._viewMatrix = new THREE.Matrix4();
         this.width = width;
         this.height = height;
-        this._viewMatrixNeedsUpdate = true;
         this.resize(width, height);
 
         this._preSSE = Infinity;
@@ -138,12 +139,16 @@ class Camera {
     }
 
     /**
-     * Resize the camera to a given width and height
+     * Resize the camera to a given width and height.
      *
-     * @param   {number}    width               The width to resize the camera to.
-     * @param   {number}    height              The height to resize the camera to.
+     * @param {number} width The width to resize the camera to. Must be strictly positive, won't resize otherwise.
+     * @param {number} height The height to resize the camera to. Must be strictly positive, won't resize otherwise.
      */
     resize(width, height) {
+        if (!width || width <= 0 || !height || height <= 0) {
+            console.warn(`Trying to resize the Camera with invalid height (${height}) or width (${width}). Skipping resize.`);
+            return;
+        }
         const ratio = width / height;
         if (this.camera3D.aspect !== ratio) {
             if (this.camera3D.isOrthographicCamera) {
@@ -152,8 +157,8 @@ class Camera {
                 this.camera3D.bottom = -halfH;
                 this.camera3D.top = halfH;
             } else if (this.camera3D.isPerspectiveCamera) {
-                this.camera3D.fov = 2 * THREE.Math.radToDeg(Math.atan(
-                    (height / this.height) * Math.tan(THREE.Math.degToRad(this.camera3D.fov) / 2),
+                this.camera3D.fov = 2 * THREE.MathUtils.radToDeg(Math.atan(
+                    (height / this.height) * Math.tan(THREE.MathUtils.degToRad(this.camera3D.fov) / 2),
                 ));
             }
             this.camera3D.aspect = ratio;
@@ -165,14 +170,14 @@ class Camera {
 
         if (this.camera3D.updateProjectionMatrix) {
             this.camera3D.updateProjectionMatrix();
-            this._viewMatrixNeedsUpdate = true;
+            this.#_viewMatrixNeedsUpdate = true;
         }
     }
 
     update() {
         // update matrix
         this.camera3D.updateMatrixWorld();
-        this._viewMatrixNeedsUpdate = true;
+        this.#_viewMatrixNeedsUpdate = true;
     }
 
     /**
@@ -201,16 +206,16 @@ class Camera {
     }
 
     isSphereVisible(sphere, matrixWorld) {
-        if (this._viewMatrixNeedsUpdate) {
+        if (this.#_viewMatrixNeedsUpdate) {
             // update visibility testing matrix
-            this._viewMatrix.multiplyMatrices(this.camera3D.projectionMatrix, this.camera3D.matrixWorldInverse);
-            this._viewMatrixNeedsUpdate = false;
+            this.#_viewMatrix.multiplyMatrices(this.camera3D.projectionMatrix, this.camera3D.matrixWorldInverse);
+            this.#_viewMatrixNeedsUpdate = false;
         }
         if (matrixWorld) {
-            tmp.matrix.multiplyMatrices(this._viewMatrix, matrixWorld);
+            tmp.matrix.multiplyMatrices(this.#_viewMatrix, matrixWorld);
             tmp.frustum.setFromProjectionMatrix(tmp.matrix);
         } else {
-            tmp.frustum.setFromProjectionMatrix(this._viewMatrix);
+            tmp.frustum.setFromProjectionMatrix(this.#_viewMatrix);
         }
         return tmp.frustum.intersectsSphere(sphere);
     }

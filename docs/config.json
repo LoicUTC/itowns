@@ -29,13 +29,15 @@
                 "Extent",
                 "OrientationUtils",
                 "OBB",
-                "DEMUtils"
+                "DEMUtils",
+                "GeoidGrid"
             ],
 
             "Layer": [
                 "Layer",
                 "ColorLayer",
                 "ElevationLayer",
+                "GeoidLayer",
                 "GeometryLayer",
                 "FeatureGeometryLayer",
                 "TiledGeometryLayer",
@@ -46,8 +48,6 @@
                 "PotreeLayer",
                 "C3DTilesLayer",
                 "LabelLayer",
-                "RasterNode",
-
                 "GlobeLayer",
                 "PlanarLayer",
                 "Atmosphere"
@@ -70,7 +70,8 @@
                 "SearchAPISource",
                 "OrientedImageSource",
                 "PotreeSource",
-                "VectorTilesSource"
+                "VectorTilesSource",
+                "EntwinePointTileSource"
             ],
 
             "Provider": [
@@ -85,7 +86,10 @@
                 "CameraCalibrationParser",
                 "B3dmParser",
                 "ShapefileParser",
-                "LASParser"
+                "LASParser",
+                "GTXParser",
+                "GDFParser",
+                "ISGParser"
             ],
 
             "Converter": [
@@ -105,7 +109,8 @@
             "Renderer": [
                 "OrientedImageMaterial",
                 "Camera",
-                "ShaderChunkManager"
+                "ShaderChunkManager",
+                "RasterTile"
             ],
 
             "3D Tiles": [
@@ -121,6 +126,14 @@
                 "DragNDrop",
                 "FeatureToolTip",
                 "TIFFParser"
+            ],
+
+            "Widgets": [
+                "Widget",
+                "Navigation",
+                "Minimap",
+                "Scale",
+                "Searchbar"
             ]
         },
         "tutorialSections": {
@@ -147,6 +160,14 @@
             "Vector-data-on-ground": {
                 "sectionTitle": "Vector visualization",
                 "sectionId": 2
+            },
+            "3DTiles-mesh-b3dm": {
+                "sectionTitle": "3D Tiles visualization",
+                "sectionId": 3
+            },
+            "3DTiles-point-cloud-pnts": {
+                "sectionTitle": "3D Tiles visualization",
+                "sectionId": 3
             }
         }
     },

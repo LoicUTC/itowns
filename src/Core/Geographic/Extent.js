@@ -10,10 +10,15 @@ import CRS from 'Core/Geographic/Crs';
 const _dim = new THREE.Vector2();
 const _dim2 = new THREE.Vector2();
 const _countTiles = new THREE.Vector2();
+const _box = new THREE.Box3();
 const tmsCoord = new THREE.Vector2();
 const dimensionTile = new THREE.Vector2();
 const defaultScheme = new THREE.Vector2(2, 2);
 const r = { row: 0, col: 0, invDiff: 0 };
+
+const cNorthWest =  new Coordinates('EPSG:4326', 0, 0, 0);
+const cSouthWest =  new Coordinates('EPSG:4326', 0, 0, 0);
+const cNorthEast =  new Coordinates('EPSG:4326', 0, 0, 0);
 
 const southWest = new THREE.Vector3();
 const northEast = new THREE.Vector3();
@@ -44,7 +49,7 @@ export const schemeTiles = new Map();
 function getInfoTms(crs) {
     const epsg = CRS.formatToEPSG(crs);
     const globalExtent = globalExtentTMS.get(epsg);
-    const globalDimension = globalExtent.dimensions(_dim2);
+    const globalDimension = globalExtent.planarDimensions(_dim2);
     const tms = CRS.formatToTms(crs);
     const sTs = schemeTiles.get(tms) || schemeTiles.get('default');
     // The isInverted parameter is to be set to the correct value, true or false
@@ -69,6 +74,8 @@ class Extent {
      * Extent is geographical bounding rectangle defined by 4 limits: west, east, south and north.
      * If crs is tiled projection (WMTS or TMS), the extent is defined by zoom, row and column.
      *
+     * Warning, using geocentric projection isn't consistent with geographical extent.
+     *
      * @param {String} crs projection of limit values.
      * @param {number|Array.<number>|Coordinates|Object} v0 west value, zoom
      * value, Array of values [west, east, south and north], Coordinates of
@@ -79,6 +86,10 @@ class Extent {
      * @param {number} [v3] north value
      */
     constructor(crs, v0, v1, v2, v3) {
+        if (CRS.isGeocentric(crs)) {
+            throw new Error(`${crs} is a geocentric projection, it doesn't make sense with a geographical extent`);
+        }
+
         this.isExtent = true;
         this.crs = crs;
         // Scale/zoom
@@ -121,7 +132,7 @@ class Extent {
             const extent = _extent.copy(this).as(CRS.formatToEPSG(crs), _extent2);
             const { globalExtent, globalDimension, sTs } = getInfoTms(CRS.formatToEPSG(crs));
             extent.clampByExtent(globalExtent);
-            extent.dimensions(dimensionTile);
+            extent.planarDimensions(dimensionTile);
 
             const zoom = (this.zoom + 1) || Math.floor(Math.log2(Math.round(globalDimension.x / (dimensionTile.x * sTs.x))));
             const countTiles = getCountTiles(crs, zoom);
@@ -143,7 +154,7 @@ class Extent {
             const target = new Extent(crs, 0, 0, 0);
             const { globalExtent, globalDimension, sTs, isInverted } = getInfoTms(this.crs);
             const center = this.center(_c);
-            this.dimensions(dimensionTile);
+            this.planarDimensions(dimensionTile);
             // Each level has 2^n * 2^n tiles...
             // ... so we count how many tiles of the same width as tile we can fit in the layer
             // ... 2^zoom = tilecount => zoom = log2(tilecount)
@@ -231,7 +242,7 @@ class Extent {
         if (CRS.isTms(this.crs)) {
             throw new Error('Invalid operation for WMTS bbox');
         }
-        this.dimensions(_dim);
+        this.planarDimensions(_dim);
 
         target.crs = this.crs;
         target.setFromValues(this.west + _dim.x * 0.5, this.south + _dim.y * 0.5);
@@ -247,9 +258,65 @@ class Extent {
     * @return {THREE.Vector2}
     */
     dimensions(target = new THREE.Vector2()) {
+        console.warn('Extent.dimensions is deprecated, use planarDimensions, geodeticDimensions or spatialEuclideanDimensions');
         target.x = Math.abs(this.east - this.west);
         target.y = Math.abs(this.north - this.south);
         return target;
+    }
+
+    /**
+     *  Planar dimensions are two planar distances west/east and south/north.
+     *  Planar distance straight-line Euclidean distance calculated in a 2D Cartesian coordinate system.
+     *
+     * @param      {THREE.Vector2}  [target=new THREE.Vector2()]  The target
+     * @return     {THREE.Vector2}  Planar dimensions
+     */
+    planarDimensions(target = new THREE.Vector2()) {
+        // Calculte the dimensions for x and y
+        return target.set(Math.abs(this.east - this.west), Math.abs(this.north - this.south));
+    }
+
+    /**
+     *  Geodetic dimensions are two planar distances west/east and south/north.
+     *  Geodetic distance is calculated in an ellispoid space as the distance
+     *  across the curved surface of the world.
+     *
+     * @param      {THREE.Vector2}  [target=new THREE.Vector2()]  The target
+     * @return     {THREE.Vector2}  geodetic dimensions
+     */
+    geodeticDimensions(target = new THREE.Vector2()) {
+        // set 3 corners extent
+        cNorthWest.crs = this.crs;
+        cSouthWest.crs = this.crs;
+        cNorthEast.crs = this.crs;
+
+        cNorthWest.setFromValues(this.west, this.north, 0);
+        cSouthWest.setFromValues(this.west, this.south, 0);
+        cNorthEast.setFromValues(this.east, this.north, 0);
+
+        // calcul geodetic distance northWest/northEast and northWest/southWest
+        return target.set(cNorthWest.geodeticDistanceTo(cNorthEast), cNorthWest.geodeticDistanceTo(cSouthWest));
+    }
+
+    /**
+     *  Spatial euclidean dimensions are two spatial euclidean distances between west/east corner and south/north corner.
+     *  Spatial euclidean distance chord is calculated in a ellispoid space.
+     *
+     * @param      {THREE.Vector2}  [target=new THREE.Vector2()]  The target
+     * @return     {THREE.Vector2}  spatial euclidean dimensions
+     */
+    spatialEuclideanDimensions(target = new THREE.Vector2()) {
+        // set 3 corners extent
+        cNorthWest.crs = this.crs;
+        cSouthWest.crs = this.crs;
+        cNorthEast.crs = this.crs;
+
+        cNorthWest.setFromValues(this.west, this.north, 0);
+        cSouthWest.setFromValues(this.west, this.south, 0);
+        cNorthEast.setFromValues(this.east, this.north, 0);
+
+        // calcul chord distance northWest/northEast and northWest/southWest
+        return target.set(cNorthWest.spatialEuclideanDistanceTo(cNorthEast), cNorthWest.spatialEuclideanDistanceTo(cSouthWest));
     }
 
     /**
@@ -324,8 +391,8 @@ class Extent {
                 r.invDiff, r.invDiff);
         }
 
-        extent.dimensions(_dim);
-        this.dimensions(_dim2);
+        extent.planarDimensions(_dim);
+        this.planarDimensions(_dim2);
 
         const originX = (this.west - extent.west) / _dim.x;
         const originY = (extent.north - this.north) / _dim.y;
@@ -522,12 +589,28 @@ class Extent {
     }
 
     /**
-     * Instance Extent with THREE.Box2
+     * Instance Extent with THREE.Box3.
+     *
+     * If crs is a geocentric projection, the `box3.min` and `box3.max`
+     * should be the geocentric coordinates of `min` and `max` of a `box3`
+     * in local tangent plane.
+     *
      * @param {string} crs Projection of extent to instancied.
-     * @param {THREE.Box2} box
+     * @param {THREE.Box3} box
      * @return {Extent}
      */
     static fromBox3(crs, box) {
+        if (CRS.isGeocentric(crs)) {
+            // if geocentric reproject box on 'EPSG:4326'
+            crs = 'EPSG:4326';
+            box = _box.copy(box);
+
+            cSouthWest.crs = crs;
+            cSouthWest.setFromVector3(box.min).as(crs, cSouthWest).toVector3(box.min);
+            cNorthEast.crs = crs;
+            cNorthEast.setFromVector3(box.max).as(crs, cNorthEast).toVector3(box.max);
+        }
+
         return new Extent(crs, {
             west: box.min.x,
             east: box.max.x,
@@ -567,7 +650,7 @@ class Extent {
      */
     subdivisionByScheme(scheme = defaultScheme) {
         const subdivisedExtents = [];
-        const dimSub = this.dimensions(_dim).divide(scheme);
+        const dimSub = this.planarDimensions(_dim).divide(scheme);
         for (let x = scheme.x - 1; x >= 0; x--) {
             for (let y = scheme.y - 1; y >= 0; y--) {
                 const west = this.west + x * dimSub.x;
@@ -590,8 +673,8 @@ class Extent {
      */
     applyMatrix4(matrix) {
         if (!CRS.isTms(this.crs)) {
-            southWest.set(this.west, this.south).applyMatrix4(matrix);
-            northEast.set(this.east, this.north).applyMatrix4(matrix);
+            southWest.set(this.west, this.south, 0).applyMatrix4(matrix);
+            northEast.set(this.east, this.north, 0).applyMatrix4(matrix);
             this.west = southWest.x;
             this.east = northEast.x;
             this.south = southWest.y;

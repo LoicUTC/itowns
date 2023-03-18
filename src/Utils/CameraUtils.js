@@ -5,6 +5,7 @@ import { MAIN_LOOP_EVENTS } from 'Core/MainLoop';
 import Coordinates from 'Core/Geographic/Coordinates';
 import Ellipsoid from 'Core/Math/Ellipsoid';
 import OBB from 'Renderer/OBB';
+import { VIEW_EVENTS } from 'Core/View';
 
 THREE.Object3D.DefaultUp.set(0, 0, 1);
 const targetPosition = new THREE.Vector3();
@@ -100,6 +101,13 @@ class CameraRig extends THREE.Object3D {
         } else {
             this.camera.matrixWorld.decompose(camera.position, camera.quaternion, camera.scale);
         }
+        view.dispatchEvent({
+            type: VIEW_EVENTS.CAMERA_MOVED,
+            coord: this.coord,
+            range: this.range,
+            heading: this.heading,
+            tilt: this.tilt,
+        });
     }
 
     setProxy(view, camera) {
@@ -431,7 +439,7 @@ export default {
             dimensions = { x: size.y, y: size.x };
         } else {
             extent = extent.as(view.referenceCrs);
-            dimensions = extent.dimensions();
+            dimensions = extent.planarDimensions();
         }
 
         extent.center(cameraTransformOptions.coord);
@@ -449,7 +457,7 @@ export default {
             cameraTransformOptions.range = 1000;
         } else if (camera.isPerspectiveCamera) {
             // setup range for camera placement
-            const verticalFOV = THREE.Math.degToRad(camera.fov);
+            const verticalFOV = THREE.MathUtils.degToRad(camera.fov);
             if (dimensions.x / dimensions.y > camera.aspect) {
                 const focal = (view.domElement.clientHeight * 0.5) / Math.tan(verticalFOV * 0.5);
                 const horizontalFOV = 2 * Math.atan(view.domElement.clientWidth * 0.5 / focal);

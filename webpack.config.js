@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const ESLintPlugin = require('eslint-webpack-plugin');
 
 const mode = process.env.NODE_ENV;
 const noInline = process.env.noInline;
@@ -57,6 +58,10 @@ module.exports = () => {
                 import: './utils/debug/Main.js',
                 dependOn: 'itowns',
             },
+            itowns_widgets: {
+                import: './src/Utils/gui/Main.js',
+                dependOn: 'itowns',
+            },
         },
         devtool: 'source-map',
         output: {
@@ -70,17 +75,14 @@ module.exports = () => {
             rules: [
                 {
                     test: /\.js$/,
-                    enforce: 'pre',
-                    include,
-                    loader: 'eslint-loader',
-                },
-                {
-                    test: /\.js$/,
                     include,
                     use: babelLoaderOptions,
                 },
             ],
         },
+        plugins: [new ESLintPlugin({
+            files: include,
+        })],
         devServer: {
             devMiddleware: {
                 publicPath: '/dist/',

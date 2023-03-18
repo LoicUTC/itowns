@@ -6,6 +6,9 @@ import CameraUtils from 'Utils/CameraUtils';
 import DEMUtils from 'Utils/DEMUtils';
 import Camera, { CAMERA_TYPE } from 'Renderer/Camera';
 import Extent from 'Core/Geographic/Extent';
+import proj4 from 'proj4';
+
+proj4.defs('EPSG:2154', '+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs');
 
 function equalToFixed(value1, value2, toFixed) {
     return value1.toFixed(toFixed) === value2.toFixed(toFixed);
@@ -48,6 +51,7 @@ describe('Camera utils unit test', function () {
     view.addFrameRequester = () => {};
     view.removeFrameRequester = () => {};
     view.notifyChange = () => { camera.updateMatrixWorld(true); };
+    view.dispatchEvent = () => {};
 
     const range = 25000000;
     const coord = new Coordinates('EPSG:4326', 2.35, 48.85, 0);
@@ -113,6 +117,7 @@ describe('Camera utils unit test', function () {
     it('should transform camera from given extent', function () {
         view.isPlanarView = true;
         view.isGlobeView = false;
+        view.referenceCrs = 'EPSG:2154';
         const orthographicCamera = new Camera(view.referenceCrs, 60, 40, { type: CAMERA_TYPE.ORTHOGRAPHIC });
         let camera3D = orthographicCamera.camera3D;
 
@@ -124,22 +129,22 @@ describe('Camera utils unit test', function () {
         CameraUtils.transformCameraToLookAtTarget(view, camera3D, subExtent);
         assert.equal(
             (camera3D.top - camera3D.bottom) / camera3D.zoom,
-            subExtent.dimensions().y,
+            subExtent.planarDimensions().y,
         );
         assert.equal(
             (camera3D.right - camera3D.left) / camera3D.zoom,
-            subExtent.dimensions().y * 1.5,
+            subExtent.planarDimensions().y * 1.5,
         );
 
         // case r < R (r = 1.5 and R = 2.0)
         subExtent.set(0, 10, 0, 5);
         CameraUtils.transformCameraToLookAtTarget(view, camera3D, subExtent);
         assert.ok(
-            (camera3D.top - camera3D.bottom) / camera3D.zoom - subExtent.dimensions().x / 1.5 < Math.pow(10, -14),
+            (camera3D.top - camera3D.bottom) / camera3D.zoom - subExtent.planarDimensions().x / 1.5 < 10 ** -14,
         );
         assert.equal(
             (camera3D.right - camera3D.left) / camera3D.zoom,
-            subExtent.dimensions().x,
+            subExtent.planarDimensions().x,
         );
 
         const perspectiveCamera = new Camera(view.referenceCrs, 60, 40);
@@ -150,7 +155,7 @@ describe('Camera utils unit test', function () {
         camera3D.updateMatrixWorld(true);
         assert.ok(
             CameraUtils.getCameraTransformOptionsFromExtent(view, camera3D, subExtent).range -
-            subExtent.dimensions().y / (2 * Math.tan(THREE.Math.degToRad(camera3D.fov) / 2)) < Math.pow(10, -14),
+            subExtent.planarDimensions().y / (2 * Math.tan(THREE.MathUtils.degToRad(camera3D.fov) / 2)) < 10 ** -14,
         );
     });
 });

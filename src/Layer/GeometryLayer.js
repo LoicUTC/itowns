@@ -1,32 +1,7 @@
 import Layer from 'Layer/Layer';
 import Picking from 'Core/Picking';
 import { CACHE_POLICIES } from 'Core/Scheduler/Cache';
-
-function disposeMesh(obj) {
-    if (obj.dispose) {
-        obj.dispose();
-    } else {
-        if (obj.geometry) {
-            obj.geometry.dispose();
-        }
-        if (obj.material) {
-            if (Array.isArray(obj.material)) {
-                for (const material of obj.material) {
-                    material.dispose();
-                }
-            } else {
-                obj.material.dispose();
-            }
-        }
-    }
-}
-
-function traverse(obj, callback) {
-    for (const child of obj.children) {
-        traverse(child, callback);
-    }
-    callback(obj);
-}
+import ObjectRemovalHelper from 'Process/ObjectRemovalHelper';
 
 /**
  * Fires when the opacity of the layer has changed.
@@ -80,7 +55,12 @@ class GeometryLayer extends Layer {
      * view.addLayer(geometry);
      */
     constructor(id, object3d, config = {}) {
-        config.cacheLifeTime = config.cacheLifeTime == undefined ? CACHE_POLICIES.GEOMETRY : config.cacheLifeTime;
+        config.cacheLifeTime = config.cacheLifeTime ?? CACHE_POLICIES.GEOMETRY;
+
+        // Remove this part when Object.assign(this, config) will be removed from Layer Constructor
+        const visible = config.visible;
+        delete config.visible;
+
         super(id, config);
 
         this.isGeometryLayer = true;
@@ -100,34 +80,11 @@ class GeometryLayer extends Layer {
             configurable: true,
         });
 
-        this.defineLayerProperty('opacity', 1.0, () => {
-            const root = this.parent ? this.parent.object3d : this.object3d;
-            root.traverse((object) => {
-                if (object.layer == this) {
-                    this.changeOpacity(object);
-                } else if (object.content && object.content.layer == this) {
-                    object.content.traverse(this.changeOpacity);
-                }
-            });
-        });
-
-        this.defineLayerProperty('wireframe', false, () => {
-            const root = this.parent ? this.parent.object3d : this.object3d;
-            root.traverse((object) => {
-                if (object.layer == this && object.material) {
-                    object.material.wireframe = this.wireframe;
-                } else if (object.content && object.content.layer == this) {
-                    object.content.traverse((o) => {
-                        if (o.material && o.layer == this) {
-                            o.material.wireframe = this.wireframe;
-                        }
-                    });
-                }
-            });
-        });
+        this.opacity = 1.0;
+        this.wireframe = false;
 
         this.attachedLayers = [];
-        this.visible = config.visible == undefined ? true : config.visible;
+        this.visible = visible ?? true;
         Object.defineProperty(this.zoom, 'max', {
             value: Infinity,
             writable: false,
@@ -136,6 +93,20 @@ class GeometryLayer extends Layer {
         // Feature options
         this.filteringExtent = !this.source.isFileSource;
         this.structure = '3d';
+    }
+
+    get visible() {
+        return this.object3d.visible;
+    }
+
+    set visible(value) {
+        if (this.object3d.visible !== value) {
+            const event = { type: 'visible-property-changed', previous: {}, new: {} };
+            event.previous.visible = this.object3d.visible;
+            event.new.visible = value;
+            this.dispatchEvent(event);
+            this.object3d.visible = value;
+        }
     }
 
     // Attached layers expect to receive the visual representation of a
@@ -197,23 +168,23 @@ class GeometryLayer extends Layer {
     }
 
     /**
-     * All layer's meshs are removed from scene and disposed from video device.
+     * All layer's 3D objects are removed from the scene and disposed from the video device.
+     * @param {boolean} [clearCache=false] Whether to clear the layer cache or not
      */
-    delete() {
+    delete(clearCache) {
+        if (clearCache) {
+            this.cache.clear();
+        }
+
         // if Layer is attached
         if (this.parent) {
-            traverse(this.parent.object3d, (obj) => {
-                if (obj.layer && obj.layer.id == this.id) {
-                    obj.parent.remove(obj);
-                    disposeMesh(obj);
-                }
-            });
+            ObjectRemovalHelper.removeChildrenAndCleanupRecursively(this, this.parent.object3d);
         }
 
         if (this.object3d.parent) {
             this.object3d.parent.remove(this.object3d);
         }
-        this.object3d.traverse(disposeMesh);
+        ObjectRemovalHelper.removeChildrenAndCleanupRecursively(this, this.object3d);
     }
 
     /**
@@ -230,29 +201,7 @@ class GeometryLayer extends Layer {
      * specified coordinates.
      */
     pickObjectsAt(view, coordinates, radius = this.options.defaultPickingRadius, target = []) {
-        const object3d = this.parent ? this.parent.object3d : this.object3d;
-        return Picking.pickObjectsAt(view, coordinates, radius, object3d, target, this.threejsLayer);
-    }
-
-    /**
-     * Change the opacity of an object, according to the value of the `opacity`
-     * property of this layer.
-     *
-     * @param {Object} object - The object to change the opacity from. It is
-     * usually a `THREE.Object3d` or an implementation of it.
-     */
-    changeOpacity(object) {
-        if (object.material) {
-            // != undefined: we want the test to pass if opacity is 0
-            if (object.material.opacity != undefined) {
-                object.material.transparent = this.opacity < 1.0;
-                object.material.opacity = this.opacity;
-            }
-            if (object.material.uniforms && object.material.uniforms.opacity != undefined) {
-                object.material.transparent = this.opacity < 1.0;
-                object.material.uniforms.opacity.value = this.opacity;
-            }
-        }
+        return Picking.pickObjectsAt(view, coordinates, radius, this.object3d, target);
     }
 }
 

@@ -79,12 +79,14 @@ import CRS from 'Core/Geographic/Crs';
  * itowns.Fetcher.json('https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements/09-ariege/departement-09-ariege.geojson')
  *     .then(function _(geojson) {
  *         return itowns.GeoJsonParser.parse(geojson, {
- *             in: { in: 'EPSG:4326' },
- *             out: {
-     *             crs: view.tileLayer.extent.crs,
-     *             buildExtent: true,
-     *             mergeFeatures: true,
-     *             structure: '2d',
+ *             in: { crs: 'EPSG:4326' },
+ *             out: { crs: view.tileLayer.extent.crs,
+ *                      style: new itowns.Style({
+ *                          fill: {
+ *                              color: new itowns.THREE.Color(0xffcc00),
+ *                              extrusion_height: () => 5000,
+ *                      }),
+ *                  },
  *             },
  *         });
  *     }).then(function _(features) {

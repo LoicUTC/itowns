@@ -12,6 +12,7 @@ import { getMaxColorSamplerUnitsCount } from 'Renderer/LayeredMaterial';
 import Scheduler from 'Core/Scheduler/Scheduler';
 import Picking from 'Core/Picking';
 import LabelLayer from 'Layer/LabelLayer';
+import ObjectRemovalHelper from 'Process/ObjectRemovalHelper';
 
 export const VIEW_EVENTS = {
     /**
@@ -29,6 +30,7 @@ export const VIEW_EVENTS = {
     LAYER_ADDED: 'layer-added',
     INITIALIZED: 'initialized',
     COLOR_LAYERS_ORDER_CHANGED,
+    CAMERA_MOVED: 'camera-moved',
 };
 
 /**
@@ -37,21 +39,6 @@ export const VIEW_EVENTS = {
  * @event View#dblclick-right
  * @property {string} type  dblclick-right
  */
-
-
-const _syncGeometryLayerVisibility = function _syncGeometryLayerVisibility(layer, view) {
-    if (layer.object3d) {
-        layer.object3d.visible = layer.visible;
-    }
-
-    if (layer.threejsLayer) {
-        if (layer.visible) {
-            view.camera.camera3D.layers.enable(layer.threejsLayer);
-        } else {
-            view.camera.camera3D.layers.disable(layer.threejsLayer);
-        }
-    }
-};
 
 function _preprocessLayer(view, layer, parentLayer) {
     const source = layer.source;
@@ -63,13 +50,6 @@ function _preprocessLayer(view, layer, parentLayer) {
     }
 
     if (layer.isGeometryLayer) {
-        if (parentLayer) {
-            // layer.threejsLayer *must* be assigned before preprocessing,
-            // because TileProvider.preprocessDataLayer function uses it.
-            layer.threejsLayer = view.mainLoop.gfxEngine.getUniqueThreejsLayer();
-        }
-        layer.defineLayerProperty('visible', true, () => _syncGeometryLayerVisibility(layer, view));
-        _syncGeometryLayerVisibility(layer, view);
         // Find crs projection layer, this is projection destination
         layer.crs = view.referenceCrs;
     } else if (!layer.crs) {
@@ -95,6 +75,7 @@ function _preprocessLayer(view, layer, parentLayer) {
             zoom: layer.zoom,
             crs: source.crs,
             visible: layer.visible,
+            margin: 15,
         });
 
         layer.addEventListener('visible-property-changed', () => {
@@ -130,6 +111,9 @@ const viewers = [];
 let screenMeters;
 
 class View extends THREE.EventDispatcher {
+    #layers = [];
+    #pixelDepthBuffer = new Uint8Array(4);
+    #fullSizeDepthBuffer;
     /**
      * Constructs an Itowns View instance
      *
@@ -161,6 +145,7 @@ class View extends THREE.EventDispatcher {
      * @param {?Scene} [options.scene3D] - [THREE.Scene](https://threejs.org/docs/#api/en/scenes/Scene) instance to use, otherwise a default one will be constructed
      * @param {?Color} options.diffuse - [THREE.Color](https://threejs.org/docs/?q=color#api/en/math/Color) Diffuse color terrain material.
      * This color is applied to terrain if there isn't color layer on terrain extent (by example on pole).
+     * @param {boolean} [options.enableFocusOnStart=true] - enable focus on dom element on start.
      *
      * @constructor
      */
@@ -174,7 +159,6 @@ class View extends THREE.EventDispatcher {
         this.domElement = viewerDiv;
 
         this.referenceCrs = crs;
-        coordinates.crs = crs;
 
         let engine;
         // options.renderer can be 2 separate things:
@@ -190,7 +174,7 @@ class View extends THREE.EventDispatcher {
 
         this.scene = options.scene3D || new THREE.Scene();
         if (!options.scene3D) {
-            this.scene.autoUpdate = false;
+            this.scene.matrixWorldAutoUpdate = false;
         }
 
         this.camera = new Camera(
@@ -200,9 +184,9 @@ class View extends THREE.EventDispatcher {
             options.camera);
 
         this._frameRequesters = { };
-        this._layers = [];
 
-        window.addEventListener('resize', () => this.resize(), false);
+        this._resizeListener = () => this.resize();
+        window.addEventListener('resize', this._resizeListener, false);
 
         this._changeSources = new Set();
 
@@ -232,14 +216,15 @@ class View extends THREE.EventDispatcher {
 
         this.addEventListener(VIEW_EVENTS.LAYERS_INITIALIZED, fn);
 
-        this._fullSizeDepthBuffer = new Uint8Array(4 * this.camera.width * this.camera.height);
-        this._pixelDepthBuffer = new Uint8Array(4);
+        this.#fullSizeDepthBuffer = new Uint8Array(4 * this.camera.width * this.camera.height);
 
         // Indicates that view's domElement can be focused (the negative value indicates that domElement can't be
         // focused sequentially using tab key). Focus is needed to capture some key events.
         this.domElement.tabIndex = -1;
         // Set focus on view's domElement.
-        this.domElement.focus();
+        if (!options.disableFocusOnStart) {
+            this.domElement.focus();
+        }
 
         // Create a custom `dblclick-right` event that is triggered when double right-clicking
         let rightClickTimeStamp;
@@ -266,35 +251,44 @@ class View extends THREE.EventDispatcher {
      * - remove all layers
      * - remove all frame requester
      * - remove all events
+     * @param {boolean} [clearCache=false] Whether to clear all the caches or not (layers cache, style cache, tilesCache)
      */
-    dispose() {
+    dispose(clearCache = false) {
         const id = viewers.indexOf(this);
         if (id == -1) {
             console.warn('View already disposed');
             return;
         }
+
+        window.removeEventListener('resize', this._resizeListener);
+
         // controls dispose
-        if (this.controls && this.controls.dispose) {
-            this.controls.dispose();
+        if (this.controls) {
+            if (typeof this.controls.dispose === 'function') {
+                this.controls.dispose();
+            }
+            delete this.controls;
         }
         // remove alls frameRequester
         this.removeAllFrameRequesters();
         // remove alls events
         this.removeAllEvents();
-        // remove alls layers
+        // remove all layers
         const layers = this.getLayers(l => !l.isTiledGeometryLayer && !l.isAtmosphere);
         for (const layer of layers) {
-            this.removeLayer(layer.id);
+            this.removeLayer(layer.id, clearCache);
         }
         const atmospheres = this.getLayers(l => l.isAtmosphere);
         for (const atmosphere of atmospheres) {
-            this.removeLayer(atmosphere.id);
+            this.removeLayer(atmosphere.id, clearCache);
         }
         const tileLayers = this.getLayers(l => l.isTiledGeometryLayer);
         for (const tileLayer of tileLayers) {
-            this.removeLayer(tileLayer.id);
+            this.removeLayer(tileLayer.id, clearCache);
         }
         viewers.splice(id, 1);
+        // Remove remaining objects in the scene (e.g. helpers, debug, etc.)
+        this.scene.traverse(ObjectRemovalHelper.cleanup);
     }
 
     /**
@@ -346,7 +340,7 @@ class View extends THREE.EventDispatcher {
                 return layer._reject(new Error('Cant add GeometryLayer: missing a preUpdate function'));
             }
 
-            this._layers.push(layer);
+            this.#layers.push(layer);
         }
 
         if (layer.object3d && !layer.object3d.parent && layer.object3d !== this.scene) {
@@ -373,23 +367,24 @@ class View extends THREE.EventDispatcher {
      * Removes a specific imagery layer from the current layer list. This removes layers inserted with attach().
      * @example
      * view.removeLayer('layerId');
-     * @param      {string}   layerId      The identifier
-     * @return     {boolean}
+     * @param {string} layerId The identifier
+     * @param {boolean} [clearCache=false] Whether to clear all the layer cache or not
+     * @return {boolean}
      */
-    removeLayer(layerId) {
+    removeLayer(layerId, clearCache) {
         const layer = this.getLayerById(layerId);
         if (layer) {
             const parentLayer = layer.parent;
 
             // Remove and dispose all nodes
-            layer.delete();
+            layer.delete(clearCache);
 
             // Detach layer if it's attached
             if (parentLayer && !parentLayer.detach(layer)) {
                 throw new Error(`Error to detach ${layerId} from ${parentLayer.id}`);
             } else if (parentLayer == undefined) {
                 // Remove layer from viewer
-                this._layers.splice(this._layers.findIndex(l => l.id == layerId), 1);
+                this.#layers.splice(this.#layers.findIndex(l => l.id == layerId), 1);
             }
             if (layer.isColorLayer) {
                 // Update color layers sequence
@@ -436,7 +431,7 @@ class View extends THREE.EventDispatcher {
         if (changeSource) {
             this._changeSources.add(changeSource);
             if ((changeSource.isTileMesh || changeSource.isCamera)) {
-                this._fullSizeDepthBuffer.needsUpdate = true;
+                this.#fullSizeDepthBuffer.needsUpdate = true;
             }
         }
         this.mainLoop.scheduleViewUpdate(this, needsRedraw);
@@ -463,7 +458,7 @@ class View extends THREE.EventDispatcher {
      */
     getLayers(filter) {
         const result = [];
-        for (const layer of this._layers) {
+        for (const layer of this.#layers) {
             if (!filter || filter(layer)) {
                 result.push(layer);
             }
@@ -734,6 +729,9 @@ class View extends THREE.EventDispatcher {
         const mouse = (mouseOrEvt instanceof Event) ? this.eventToViewCoords(mouseOrEvt) : mouseOrEvt;
 
         for (const source of sources) {
+            if (source.isAtmosphere) {
+                continue;
+            }
             if (source.isGeometryLayer) {
                 if (!source.ready) {
                     console.warn('view.pickObjectAt : layer is not ready : ', source);
@@ -758,6 +756,9 @@ class View extends THREE.EventDispatcher {
      * @return {number} The zoom scale.
      */
     getScale(pitch = 0.28) {
+        if (this.camera.camera3D.isOrthographicCamera) {
+            return pitch * 1E-3 / this.getPixelsToMeters();
+        }
         return this.getScaleFromDistance(pitch, this.getDistanceFromCamera());
     }
 
@@ -882,14 +883,14 @@ class View extends THREE.EventDispatcher {
         }
 
         this.getPickingPositionFromDepth(mouse, positionVector);
-        const distance = this.camera.camera3D.position.distanceTo(positionVector);
+        coordinates.crs = this.referenceCrs;
         coordinates.setFromVector3(positionVector);
 
         // Get the correct precision; the position variable will be set in this
         // function.
         let precision;
         const precisions = {
-            M: this.getPixelsToMetersFromDistance(radius, distance),
+            M: this.getPixelsToMeters(radius, mouse),
             D: 0.001 * radius,
         };
 
@@ -959,12 +960,12 @@ class View extends THREE.EventDispatcher {
     }
 
     /**
-     * Returns the world position (view's crs: referenceCrs) under view coordinates.
+     * Returns the world position on the terrain (view's crs: referenceCrs) under view coordinates.
      * This position is computed with depth buffer.
      *
      * @param      {THREE.Vector2}  mouse  position in view coordinates (in pixel), if it's null so it's view's center.
      * @param      {THREE.Vector3}  [target=THREE.Vector3()] target. the result will be copied into this Vector3. If not present a new one will be created.
-     * @return     {THREE.Vector3}  the world position in view's crs: referenceCrs.
+     * @return     {THREE.Vector3}  the world position on the terrain in view's crs: referenceCrs.
      */
 
     getPickingPositionFromDepth(mouse, target = new THREE.Vector3()) {
@@ -982,21 +983,17 @@ class View extends THREE.EventDispatcher {
         mouse.x = Math.floor(mouse.x);
         mouse.y = Math.floor(mouse.y);
 
-        // Prepare state
-        const prev = camera.layers.mask;
-        camera.layers.mask = 1 << this.tileLayer.threejsLayer;
-
         // Render/Read to buffer
         let buffer;
         if (viewPaused) {
-            if (this._fullSizeDepthBuffer.needsUpdate) {
-                this.readDepthBuffer(0, 0, dim.x, dim.y, this._fullSizeDepthBuffer);
-                this._fullSizeDepthBuffer.needsUpdate = false;
+            if (this.#fullSizeDepthBuffer.needsUpdate) {
+                this.readDepthBuffer(0, 0, dim.x, dim.y, this.#fullSizeDepthBuffer);
+                this.#fullSizeDepthBuffer.needsUpdate = false;
             }
             const id = ((dim.y - mouse.y - 1) * dim.x + mouse.x) * 4;
-            buffer = this._fullSizeDepthBuffer.slice(id, id + 4);
+            buffer = this.#fullSizeDepthBuffer.slice(id, id + 4);
         } else {
-            buffer = this.readDepthBuffer(mouse.x, mouse.y, 1, 1, this._pixelDepthBuffer);
+            buffer = this.readDepthBuffer(mouse.x, mouse.y, 1, 1, this.#pixelDepthBuffer);
         }
 
         screen.x = (mouse.x / dim.x) * 2 - 1;
@@ -1029,11 +1026,61 @@ class View extends THREE.EventDispatcher {
             target.unproject(camera);
         }
 
-        camera.layers.mask = prev;
-
         if (target.length() > 10000000) { return undefined; }
 
         return target;
+    }
+
+    /**
+     * Returns the world {@link Coordinates} of the terrain at given view coordinates.
+     *
+     * @param {THREE.Vector2|event} [mouse] The view coordinates at which the world coordinates must be returned. This
+     * parameter can also be set to a mouse event from which the view coordinates will be deducted. If not specified,
+     * it will be defaulted to the view's center coordinates.
+     * @param {Coordinates} [target] The result will be copied into this {@link Coordinates} in the coordinate reference
+     * system of the given coordinate. If not specified, a new {@link Coordinates} instance will be created (in the
+     * view referenceCrs).
+     *
+     * @returns {Coordinates}   The world {@link Coordinates} of the terrain at the given view coordinates in the
+     * coordinate reference system of the target or in the view referenceCrs if no target is specified.
+     */
+    pickTerrainCoordinates(mouse, target = new Coordinates(this.referenceCrs)) {
+        if (mouse instanceof Event) {
+            this.eventToViewCoords(mouse);
+        } else if (mouse && mouse.x !== undefined && mouse.y !== undefined) {
+            _eventCoords.copy(mouse);
+        } else {
+            _eventCoords.set(
+                this.mainLoop.gfxEngine.width / 2,
+                this.mainLoop.gfxEngine.height / 2,
+            );
+        }
+
+        this.getPickingPositionFromDepth(_eventCoords, positionVector);
+        coordinates.crs = this.referenceCrs;
+        coordinates.setFromVector3(positionVector);
+        coordinates.as(target.crs, target);
+
+        return target;
+    }
+
+    /**
+     * Returns the world {@link Coordinates} of the terrain at given view coordinates.
+     *
+     * @param   {THREE.Vector2|event}   [mouse]     The view coordinates at which the world coordinates must be
+                                                    * returned. This parameter can also be set to a mouse event from
+                                                    * which the view coordinates will be deducted. If not specified, it
+                                                    * will be defaulted to the view's center coordinates.
+     * @param   {Coordinates}           [target]    The result will be copied into this {@link Coordinates}. If not
+                                                    * specified, a new {@link Coordinates} instance will be created.
+     *
+     * @returns {Coordinates}   The world {@link Coordinates} of the terrain at the given view coordinates.
+     *
+     * @deprecated Use View#pickTerrainCoordinates instead.
+     */
+    pickCoordinates(mouse, target = new Coordinates(this.referenceCrs)) {
+        console.warn('Deprecated, use View#pickTerrainCoordinates instead.');
+        return this.pickTerrainCoordinates(mouse, target);
     }
 
     /**
@@ -1045,6 +1092,11 @@ class View extends THREE.EventDispatcher {
      * the viewer with. By default it is the `clientHeight` of the `viewerDiv`.
      */
     resize(width, height) {
+        if (width < 0 || height < 0) {
+            console.warn(`Trying to resize the View with negative height (${height}) or width (${width}). Skipping resize.`);
+            return;
+        }
+
         if (width == undefined) {
             width = this.domElement.clientWidth;
         }
@@ -1053,10 +1105,12 @@ class View extends THREE.EventDispatcher {
             height = this.domElement.clientHeight;
         }
 
-        this._fullSizeDepthBuffer = new Uint8Array(4 * width * height);
+        this.#fullSizeDepthBuffer = new Uint8Array(4 * width * height);
         this.mainLoop.gfxEngine.onWindowResize(width, height);
-        this.camera.resize(width, height);
-        this.notifyChange(this.camera.camera3D);
+        if (width !== 0 && height !== 0) {
+            this.camera.resize(width, height);
+            this.notifyChange(this.camera.camera3D);
+        }
     }
 }
 

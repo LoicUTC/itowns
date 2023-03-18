@@ -12,6 +12,7 @@ const center = new THREE.Vector3();
 const coord = new Coordinates('EPSG:4326', 0, 0, 0);
 let obb;
 
+// it could be considered to remove THREE.Object3D extend.
 class OBB extends THREE.Object3D {
     /**
      * Oriented bounding box
@@ -25,7 +26,6 @@ class OBB extends THREE.Object3D {
         this.box3D = new THREE.Box3(min.clone(), max.clone());
         this.natBox = this.box3D.clone();
         this.z = { min: 0, max: 0, scale: 1.0 };
-        return this;
     }
 
     /**
@@ -54,30 +54,25 @@ class OBB extends THREE.Object3D {
     }
 
     /**
-     * Update the top point world
+     * Update z min, z max and z scale of oriented bounding box
      *
+     * @param {Object}  [elevation={}]
+     * @param {number}  [elevation.min]             The minimum of oriented bounding box
+     * @param {number}  [elevation.max]             The maximum of oriented bounding box
+     * @param {number}  [elevation.scale]           The scale of oriented bounding box Z axis
+     * @param {number}  [elevation.geoidHeight]     The geoid height added to ellipsoid.
      */
-    update() {
-        this.updateMatrixWorld(true);
-    }
+    updateZ(elevation = {}) {
+        this.z.min = elevation.min ?? this.z.min;
+        this.z.max = elevation.max ?? this.z.max;
 
-    /**
-     * Update z min and z max of oriented bounding box
-     *
-     * @param {number}  min The minimum of oriented bounding box
-     * @param {number}  max The maximum of oriented bounding box
-     * @param {number} scale
-     */
-    updateZ(min, max, scale = this.z.scale) {
-        this.z = { min, max, scale, delta: Math.abs(max - min) * scale };
-        this.box3D.min.z = this.natBox.min.z + min * scale;
-        this.box3D.max.z = this.natBox.max.z + max * scale;
-    }
+        this.z.scale = elevation.scale > 0 ? elevation.scale : this.z.scale;
+        this.z.delta = Math.abs(this.z.max - this.z.min) * this.z.scale;
 
-    updateScaleZ(scale) {
-        if (scale > 0) {
-            this.updateZ(this.z.min, this.z.max, scale);
-        }
+        const geoidHeight = elevation.geoidHeight || 0;
+
+        this.box3D.min.z = this.natBox.min.z + this.z.min * this.z.scale + geoidHeight;
+        this.box3D.max.z = this.natBox.max.z + this.z.max * this.z.scale + geoidHeight;
     }
 
     /**
@@ -112,7 +107,7 @@ class OBB extends THREE.Object3D {
         if (extent.crs == 'EPSG:4326') {
             const { sharableExtent, quaternion, position } = builder.computeSharableExtent(extent);
             // Compute the minimum count of segment to build tile
-            const segment = Math.max(Math.floor(sharableExtent.dimensions(dimension).x / 90 + 1), 2);
+            const segment = Math.max(Math.floor(sharableExtent.planarDimensions(dimension).x / 90 + 1), 2);
             const paramsGeometry = {
                 extent: sharableExtent,
                 level: 0,
@@ -126,13 +121,13 @@ class OBB extends THREE.Object3D {
             obb.natBox.copy(geometry.boundingBox);
             this.copy(obb);
 
-            this.updateZ(minHeight, maxHeight);
+            this.updateZ({ min: minHeight, max: maxHeight });
             this.position.copy(position);
             this.quaternion.copy(quaternion);
             this.updateMatrixWorld(true);
         } else if (!CRS.isTms(extent.crs) && CRS.isMetricUnit(extent.crs)) {
             extent.center(coord).toVector3(this.position);
-            extent.dimensions(dimension);
+            extent.planarDimensions(dimension);
             size.set(dimension.x, dimension.y, Math.abs(maxHeight - minHeight));
             this.box3D.setFromCenterAndSize(center, size);
             this.updateMatrixWorld(true);

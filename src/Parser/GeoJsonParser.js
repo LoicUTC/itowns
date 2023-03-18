@@ -8,14 +8,15 @@ function readCRS(json) {
         if (json.crs.type.toLowerCase() == 'epsg') {
             return `EPSG:${json.crs.properties.code}`;
         } else if (json.crs.type.toLowerCase() == 'name') {
-            const epsgIdx = json.crs.properties.name.toLowerCase().indexOf('epsg:');
-            if (epsgIdx >= 0) {
-                // authority:version:code => EPSG:[...]:code
-                const codeStart = json.crs.properties.name.indexOf(':', epsgIdx + 5);
+            if (json.crs.properties.name.toLowerCase().includes('epsg:')) {
+                // OGC CRS URN: urn:ogc:def:crs:authority:version:code => EPSG:[...]:code
+                // legacy identifier: authority:code => EPSG:code
+                const codeStart = json.crs.properties.name.lastIndexOf(':');
                 if (codeStart > 0) {
                     return `EPSG:${json.crs.properties.name.substr(codeStart + 1)}`;
                 }
             }
+            throw new Error(`Unsupported CRS authority '${json.crs.properties.name}'`);
         }
         throw new Error(`Unsupported CRS type '${json.crs}'`);
     }
@@ -24,6 +25,9 @@ function readCRS(json) {
 }
 
 const coord = new Coordinates('EPSG:4978', 0, 0, 0);
+const last = new Coordinates('EPSG:4978', 0, 0, 0);
+const first = new Coordinates('EPSG:4978', 0, 0, 0);
+
 // filter with the first point
 const firstPtIsOut = (extent, aCoords, crs) => {
     coord.crs = crs;
@@ -40,6 +44,24 @@ const toFeature = {
             coord.setFromValues(triplet[0], triplet[1], triplet[2]);
             geometry.pushCoordinates(coord, feature);
         }
+        geometry.updateExtent();
+    },
+    // compute clockwise polygon
+    populateGeometryWithCCW(crsIn, coordinates, geometry, feature) {
+        geometry.startSubGeometry(coordinates.length, feature);
+        coord.crs = crsIn;
+
+        let sum = 0;
+        first.setFromValues(coordinates[0][0], coordinates[0][1], coordinates[0][2]);
+        last.copy(first);
+        for (var i = 0; i < coordinates.length; i++) {
+            coord.setFromValues(coordinates[i][0], coordinates[i][1], coordinates[i][2]);
+            sum += (last.x - coord.x) * (last.y + coord.y);
+            last.copy(coord);
+            geometry.pushCoordinates(coord, feature);
+        }
+        sum += (last.x - first.x) * (last.y + first.y);
+        geometry.getLastSubGeometry().ccw = sum < 0;
         geometry.updateExtent();
     },
     point(feature, crsIn, coordsIn, collection, properties) {
@@ -67,7 +89,7 @@ const toFeature = {
 
         // Then read contour and holes
         for (let i = 0; i < coordsIn.length; i++) {
-            this.populateGeometry(crsIn, coordsIn[i], geometry, feature);
+            this.populateGeometryWithCCW(crsIn, coordsIn[i], geometry, feature);
         }
         feature.updateExtent(geometry);
     },
@@ -131,6 +153,7 @@ function jsonFeatureToFeature(crsIn, json, collection) {
     const feature = collection.requestFeatureByType(featureType);
     const coordinates = jsonType != 'point' ? json.geometry.coordinates : [json.geometry.coordinates];
     const properties = json.properties || {};
+    feature.hasRawElevationData = coordinates[0]?.length === 3;
 
     // copy other properties
     for (const key of Object.keys(json)) {

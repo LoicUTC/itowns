@@ -80,10 +80,16 @@ import CRS from 'Core/Geographic/Crs';
  * });
  *
  * // Create the layer
- * const geometryLayer = new itowns.GeometryLayer('mesh_build', {
- *     update: itowns.FeatureProcessing.update,
- *     convert: itowns.Feature2Mesh.convert({ extrude: () => 50 }),
+ * const geometryLayer = new itowns.FeatureGeometryLayer('mesh_build', {
+ *     style: new itowns.Style({
+ *         fill: {
+ *             color: new itowns.THREE.Color(0xffcc00),
+ *             base_altitude: (p) => p.altitude,
+ *             extrusion_height: (p) => p.height,
+ *         }
+ *     },
  *     source: wfsSource,
+ *     zoom: { min: 14 },
  * });
  *
  * // Add the layer
@@ -118,6 +124,10 @@ class WFSSource extends Source {
         this.typeName = source.typeName;
         this.version = source.version || '2.0.2';
 
+        // Add ? at the end of the url if it is not already in the given URL
+        if (!this.url.endsWith('?')) {
+            this.url = `${this.url}?`;
+        }
         this.url = `${source.url
         }SERVICE=WFS&REQUEST=GetFeature&typeName=${this.typeName
         }&VERSION=${this.version

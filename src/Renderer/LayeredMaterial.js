@@ -49,6 +49,7 @@ const defaultStructLayer = {
     crs: 0,
     effect_parameter: 0,
     effect_type: colorLayerEffects.noEffect,
+    transparent: false,
 };
 
 function updateLayersUniforms(uniforms, olayers, max) {
@@ -94,6 +95,7 @@ export const ELEVATION_MODES = {
 let nbSamplers;
 const fragmentShader = [];
 class LayeredMaterial extends THREE.RawShaderMaterial {
+    #_visible = true;
     constructor(options = {}, crsCount) {
         super(options);
 
@@ -143,6 +145,8 @@ class LayeredMaterial extends THREE.RawShaderMaterial {
         CommonMaterial.setUniformProperty(this, 'overlayColor', new THREE.Color(1.0, 0.3, 0.0));
         CommonMaterial.setUniformProperty(this, 'objectId', 0);
 
+        CommonMaterial.setUniformProperty(this, 'geoidHeight', 0.0);
+
         // > 0 produces gaps,
         // < 0 causes oversampling of textures
         // = 0 causes sampling artefacts due to bad estimation of texture-uv gradients
@@ -166,13 +170,21 @@ class LayeredMaterial extends THREE.RawShaderMaterial {
         this.uniforms.colorOffsetScales = new THREE.Uniform(new Array(nbSamplers[1]).fill(identityOffsetScale));
         this.uniforms.colorTextureCount = new THREE.Uniform(0);
 
-        let _visible = this.visible;
         // can't do an ES6 setter/getter here
         Object.defineProperty(this, 'visible', {
-            get() { return _visible; },
+            // Knowing the visibility of a `LayeredMaterial` is useful. For example in a
+            // `GlobeView`, if you zoom in, "parent" tiles seems hidden; in fact, there
+            // are not, it is only their material (so `LayeredMaterial`) that is set to
+            // not visible.
+
+            // Adding an event when changing this property can be useful to hide others
+            // things, like in `TileDebug`, or in later PR to come (#1303 for example).
+            //
+            // TODO : verify if there is a better mechanism to avoid this event
+            get() { return this.#_visible; },
             set(v) {
-                if (_visible != v) {
-                    _visible = v;
+                if (this.#_visible != v) {
+                    this.#_visible = v;
                     this.dispatchEvent({ type: v ? 'shown' : 'hidden' });
                 }
             },

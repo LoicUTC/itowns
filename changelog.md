@@ -1,3 +1,333 @@
+<a name="2.39.0"></a>
+# [2.39.0](https://github.com/iTowns/itowns/compare/v2.38.2...v2.39.0) (2023-01-04)
+
+
+### Features
+
+* **3dtiles:** add support for binary batch table ([47325ab](https://github.com/iTowns/itowns/commit/47325ab))
+* add a npm build task creating a non minified version ([48a24fa](https://github.com/iTowns/itowns/commit/48a24fa))
+* **debug:** add altitude to displayed coordinates. ([e1fea9f](https://github.com/iTowns/itowns/commit/e1fea9f))
+* **globeControls:** add configuration parameters and documentation ([cdd865c](https://github.com/iTowns/itowns/commit/cdd865c))
+* **globeView:** allow to configure globeControls when creating a globeView ([821e522](https://github.com/iTowns/itowns/commit/821e522))
+
+
+### Bug Fixes
+
+* **3dtiles:** fix and document 3d tiles material overriding ([8ade709](https://github.com/iTowns/itowns/commit/8ade709))
+* **3dtiles:** fix layer opacity and visibility change for 3d tiles pnts ([059fe5e](https://github.com/iTowns/itowns/commit/059fe5e))
+* **3dtiles:** handle tilesets with cesium specific uniforms in shaders ([04f8b40](https://github.com/iTowns/itowns/commit/04f8b40))
+* **3dtiles:** use correct batch table constructor for pnts tiles ([e1dbd63](https://github.com/iTowns/itowns/commit/e1dbd63))
+* change THREE.Math to THREE.MathUtils ([826b5bd](https://github.com/iTowns/itowns/commit/826b5bd))
+* **Feature2Texture:** prevent drawing points if they lack style ([5706e6f](https://github.com/iTowns/itowns/commit/5706e6f))
+* **gltf:** fix parsing of khr_binary_extension in gltf 1.0 files ([2bf9d2d](https://github.com/iTowns/itowns/commit/2bf9d2d))
+* **LayeredMaterial:** fix opacity when initialized to 0 ([deac41e](https://github.com/iTowns/itowns/commit/deac41e))
+* **picking:** fix picking on multiple layers ([5c2f578](https://github.com/iTowns/itowns/commit/5c2f578))
+* **Scheduler:** replace url subdomains alternatives ([91fd9ec](https://github.com/iTowns/itowns/commit/91fd9ec))
+* **view:** fix view resize when width or height is 0 ([dbd9ee3](https://github.com/iTowns/itowns/commit/dbd9ee3))
+* **wfs, wms, wmts:** support urls ending with or without ? character ([f44dfb2](https://github.com/iTowns/itowns/commit/f44dfb2))
+
+
+### Performance Improvements
+
+* **demutils:** texture data read optimization in elevation measurement ([9ee991c](https://github.com/iTowns/itowns/commit/9ee991c))
+* **picking:** don't pick atmosphere layer ([069b2dd](https://github.com/iTowns/itowns/commit/069b2dd))
+
+
+### Examples
+
+* **3dtiles_25d:** change data url ([52a412f](https://github.com/iTowns/itowns/commit/52a412f))
+* **Camera animation:** cleanup example code ([2bfe4e6](https://github.com/iTowns/itowns/commit/2bfe4e6))
+* **GuiTools:** fix opacity slider by adding step ([3b205bc](https://github.com/iTowns/itowns/commit/3b205bc))
+* **DSM:** add an example of Digital Surface Model ([2f9d558](https://github.com/iTowns/itowns/commit/2f9d558))
+
+
+### Code Refactoring
+
+* **feature:** use feature crs property for instance center property. ([e455bdb](https://github.com/iTowns/itowns/commit/e455bdb))
+
+
+### Workflow and chores
+
+* release v2.39.0 ([dd1d251](https://github.com/iTowns/itowns/commit/dd1d251))
+* add a script to start an https local session with webpack ([e99bf15](https://github.com/iTowns/itowns/commit/e99bf15))
+* **deps:** bump loader-utils from 2.0.2 to 2.0.3 ([fd0f01b](https://github.com/iTowns/itowns/commit/fd0f01b))
+* **deps:** bump loader-utils from 2.0.3 to 2.0.4 ([cccacae](https://github.com/iTowns/itowns/commit/cccacae))
+* **deps:** bump terser from 5.13.1 to 5.14.2 ([7134b26](https://github.com/iTowns/itowns/commit/7134b26))
+* **integration:** add option to launch integration workflow manually ([db05ed6](https://github.com/iTowns/itowns/commit/db05ed6))
+* **integration:** update potree repository ([39fbdd7](https://github.com/iTowns/itowns/commit/39fbdd7))
+* up chalk to 5.0.1 ([1a30d66](https://github.com/iTowns/itowns/commit/1a30d66))
+* update CONTRIBUTORS.md ([ba33056](https://github.com/iTowns/itowns/commit/ba33056))
+* update packages. ([3dac8b9](https://github.com/iTowns/itowns/commit/3dac8b9))
+* update three.js to 0.146.0 ([55e7016](https://github.com/iTowns/itowns/commit/55e7016))
+
+
+### Documentation
+
+* **RasterTile:** fix faulty link ([7cf4fcf](https://github.com/iTowns/itowns/commit/7cf4fcf))
+* **README:** Typo in the readme redirecting to a 404 error ([04122a8](https://github.com/iTowns/itowns/commit/04122a8))
+* **tutorials:** Improve tutorial and add two tutorials for 3D tiles ([3063925](https://github.com/iTowns/itowns/commit/3063925))
+
+
+### Tests
+
+* **3dtiles:** add 3D Tiles batch table parsing tests ([f3bd6c7](https://github.com/iTowns/itowns/commit/f3bd6c7))
+
+
+### BREAKING CHANGES
+
+* **3dtiles:** `C3DTBatchTable` constructor signature has changed from
+C3DTBatchTable(buffer, binaryLength, batchLength, registeredExtensions) to
+C3DTBatchTable(buffer, jsonLength, binaryLength, batchLength, registeredExtensions)
+
+
+
+<a name="2.38.2"></a>
+## [2.38.2](https://github.com/iTowns/itowns/compare/v2.38.1...v2.38.2) (2022-05-11)
+
+
+### Features
+
+* **View:** Add option viewer to enable/disable focus on start. ([88d7c93](https://github.com/iTowns/itowns/commit/88d7c93))
+
+
+### Workflow and chores
+
+* release v2.38.2 ([36213cc](https://github.com/iTowns/itowns/commit/36213cc))
+
+
+
+<a name="2.38.1"></a>
+## [2.38.1](https://github.com/iTowns/itowns/compare/v2.38.0...v2.38.1) (2022-04-13)
+
+
+### Examples
+
+* **Navigation:** fix addButton method call ([c53ae71](https://github.com/iTowns/itowns/commit/c53ae71))
+
+
+### Workflow and chores
+
+* release v2.38.1 ([2ea8b0a](https://github.com/iTowns/itowns/commit/2ea8b0a))
+
+
+
+<a name="2.38.0"></a>
+# [2.38.0](https://github.com/iTowns/itowns/compare/v2.37.0...v2.38.0) (2022-04-13)
+
+
+### Features
+
+* **FeatureGeometryLayer:** introduce FeatureMesh, they are added to layer.object3d. ([0d777ce](https://github.com/iTowns/itowns/commit/0d777ce))
+* **Widgets:** add a searchbar widget ([164b6ee](https://github.com/iTowns/itowns/commit/164b6ee))
+* **Widgets:** add a widget to display a scale ([d3a0154](https://github.com/iTowns/itowns/commit/d3a0154))
+* **Widgets:** add show and hide methods ([59ac32c](https://github.com/iTowns/itowns/commit/59ac32c))
+* **widgets:** Navigation tooltips can be parametrized ([094803f](https://github.com/iTowns/itowns/commit/094803f))
+* **Widgets:** placeholder for searchbar can be modified ([9bd81ce](https://github.com/iTowns/itowns/commit/9bd81ce))
+
+
+### Bug Fixes
+
+* **Feature2Mesh:** fix wrong computing of clockwise polygon. ([bad5e34](https://github.com/iTowns/itowns/commit/bad5e34))
+* **GeoidLayer:** transformation error on tileMesh. ([472e39c](https://github.com/iTowns/itowns/commit/472e39c))
+* **parser:** GeoJsonParser add legacy identifier to fct readCRS() ([a0195c6](https://github.com/iTowns/itowns/commit/a0195c6))
+* **VectorTileParser:** clock wise polygon wasn't calculated. ([135ee7a](https://github.com/iTowns/itowns/commit/135ee7a))
+* **View:** fix pickCoordinates undefined parameter ([0ec49f4](https://github.com/iTowns/itowns/commit/0ec49f4))
+* **Widgets:** fix focus policy and event propagation on widgets ([7775a04](https://github.com/iTowns/itowns/commit/7775a04))
+* **Widgets:** fix in Navigation css ([a85f8b4](https://github.com/iTowns/itowns/commit/a85f8b4))
+
+
+### Examples
+
+* change view source button style ([e593237](https://github.com/iTowns/itowns/commit/e593237))
+* **FeatureGeometryLayer:** add vector tile to 3d object. ([53a42a6](https://github.com/iTowns/itowns/commit/53a42a6))
+* **view 3d:** updates on widgets ([30bee5f](https://github.com/iTowns/itowns/commit/30bee5f))
+* **Widgets:** use minimap widget in view 3D example ([5042ba7](https://github.com/iTowns/itowns/commit/5042ba7))
+
+
+### Code Refactoring
+
+* **Feature:** move properties to private fields. ([02604b9](https://github.com/iTowns/itowns/commit/02604b9))
+* **Feature:** simplify normals data. ([0914834](https://github.com/iTowns/itowns/commit/0914834))
+* **GeometryLayer:** reference to material properties from Layer properties. ([23a0269](https://github.com/iTowns/itowns/commit/23a0269))
+* **label:** render only object with labels. ([c317a8a](https://github.com/iTowns/itowns/commit/c317a8a))
+* **MainLoop:** use class for MainLoop. ([25a48fd](https://github.com/iTowns/itowns/commit/25a48fd))
+* **PlanarControls:** change focus policy ([99fadc0](https://github.com/iTowns/itowns/commit/99fadc0))
+* **view_3d_map:** simplify example ([3786dcf](https://github.com/iTowns/itowns/commit/3786dcf))
+* **View:** move View properties to private fields. ([51f5508](https://github.com/iTowns/itowns/commit/51f5508))
+* **Widgets:** add onClick property in Navigation ([8d9f69e](https://github.com/iTowns/itowns/commit/8d9f69e))
+* **Widgets:** simplify Navigation usage ([7c2bc89](https://github.com/iTowns/itowns/commit/7c2bc89))
+
+
+### Workflow and chores
+
+* release v2.38.0 ([34ae0f3](https://github.com/iTowns/itowns/commit/34ae0f3))
+* add support ecma 2022 ([25080d9](https://github.com/iTowns/itowns/commit/25080d9))
+* **deps:** bump deps to fix security vulnerability. ([1db1ae7](https://github.com/iTowns/itowns/commit/1db1ae7))
+* **deps:** bump minimist from 1.2.5 to 1.2.6 ([09e047a](https://github.com/iTowns/itowns/commit/09e047a))
+* **deps:** bump node-forge from 1.2.1 to 1.3.0 ([e536532](https://github.com/iTowns/itowns/commit/e536532))
+* **submodule:** use submodule for widgets. ([44cc7d0](https://github.com/iTowns/itowns/commit/44cc7d0))
+* update packages. ([e19809f](https://github.com/iTowns/itowns/commit/e19809f))
+
+
+### Documentation
+
+* **core:** Add doc for local execution ([faf58be](https://github.com/iTowns/itowns/commit/faf58be))
+* **Widgets:** specify GlobeView support for navigation ([c209fdc](https://github.com/iTowns/itowns/commit/c209fdc))
+* **Widgets:** specify resources needed to use widgets ([b65c081](https://github.com/iTowns/itowns/commit/b65c081))
+
+
+### Tests
+
+* **Feature2Mesh:** add test to calculate the difference with and without proj4. ([1527c64](https://github.com/iTowns/itowns/commit/1527c64))
+
+
+
+<a name="2.37.0"></a>
+# [2.37.0](https://github.com/iTowns/itowns/compare/v2.36.2...v2.37.0) (2022-01-31)
+
+
+### Features
+
+* **Geoid:** add support for geoid heights ([38569f6](https://github.com/iTowns/itowns/commit/38569f6))
+* **Parser:** add parsers for GTX, ISG and GDF file formats ([a55b154](https://github.com/iTowns/itowns/commit/a55b154))
+* **View:** add a method to pick world coordinates ([91ccfe3](https://github.com/iTowns/itowns/commit/91ccfe3))
+* **View:** add support for ortho camera in getScale method ([06eb805](https://github.com/iTowns/itowns/commit/06eb805))
+* **View:** dispatch an event when camera is moved ([37cfb90](https://github.com/iTowns/itowns/commit/37cfb90))
+* **Widget:** add a minimap widget ([6d82c74](https://github.com/iTowns/itowns/commit/6d82c74))
+
+
+### Bug Fixes
+
+* **GlobeControl:** stop damping when launching new animation ([dad7641](https://github.com/iTowns/itowns/commit/dad7641))
+* **test:** fetch local laz files behind proxy. ([b732c0a](https://github.com/iTowns/itowns/commit/b732c0a))
+* **View:** fix picking radius with polygons ([b7be8e9](https://github.com/iTowns/itowns/commit/b7be8e9))
+
+
+### Examples
+
+* **Compass:** add an example of a compass in a GlobeView ([3290820](https://github.com/iTowns/itowns/commit/3290820))
+* **FileSource:** add exemples of FileSource instantiation ([7db9bcb](https://github.com/iTowns/itowns/commit/7db9bcb))
+* **Potree:** add an example of Potree intgration within iTowns ([4bbc772](https://github.com/iTowns/itowns/commit/4bbc772))
+* **Potree:** fix minor issues on the example ([1ee50c8](https://github.com/iTowns/itowns/commit/1ee50c8))
+* **source / file:** simplify FileSource usage ([21317b4](https://github.com/iTowns/itowns/commit/21317b4))
+* **Widget:** add an example of minimap widget ([2b89f83](https://github.com/iTowns/itowns/commit/2b89f83))
+* **Widgets:** add a plugin to display widgets ([ec56fa9](https://github.com/iTowns/itowns/commit/ec56fa9))
+* add GeoidLayer implementation example ([5df8cc5](https://github.com/iTowns/itowns/commit/5df8cc5))
+
+
+### Code Refactoring
+
+* **TileMesh:** refactorize bbox update method ([18196b6](https://github.com/iTowns/itowns/commit/18196b6))
+* **Widgets:** rename widgets to navigation ([509a042](https://github.com/iTowns/itowns/commit/509a042))
+
+
+### Workflow and chores
+
+* release v2.37.0 ([97e59b6](https://github.com/iTowns/itowns/commit/97e59b6))
+* **deps-dev:** bump marked from 4.0.8 to 4.0.10 ([cfc9100](https://github.com/iTowns/itowns/commit/cfc9100))
+* add potree repo and symbolic link to gitignore ([d7bb92c](https://github.com/iTowns/itowns/commit/d7bb92c))
+* change itowns.github.io deploying ([870299f](https://github.com/iTowns/itowns/commit/870299f))
+* deploy itowns and potree bundle. ([b104fd5](https://github.com/iTowns/itowns/commit/b104fd5))
+* fix eslint rules. ([6fff078](https://github.com/iTowns/itowns/commit/6fff078))
+* update CONTRIBUTING.md ([96cfb21](https://github.com/iTowns/itowns/commit/96cfb21))
+* update packages. ([eb7c8d5](https://github.com/iTowns/itowns/commit/eb7c8d5))
+
+
+
+<a name="2.36.2"></a>
+## [2.36.2](https://github.com/iTowns/itowns/compare/v2.36.1...v2.36.2) (2021-11-29)
+
+
+### Bug Fixes
+
+* **VectorTileSource:** error if vector tile layer style is undefined. ([b535583](https://github.com/iTowns/itowns/commit/b535583))
+
+
+### Code Refactoring
+
+* **Coordinates/Extent:** rename dimension and distance methods. ([6a436ac](https://github.com/iTowns/itowns/commit/6a436ac))
+* **examples:** replace geoservice keys. ([b81738c](https://github.com/iTowns/itowns/commit/b81738c))
+* **Feature:** defaults buildExtent parameter to true for 2d structure ([3182075](https://github.com/iTowns/itowns/commit/3182075))
+
+
+### Workflow and chores
+
+* release v2.36.2 ([54c2128](https://github.com/iTowns/itowns/commit/54c2128))
+
+
+
+<a name="2.36.1"></a>
+## [2.36.1](https://github.com/iTowns/itowns/compare/v2.36.0...v2.36.1) (2021-11-22)
+
+
+### Bug Fixes
+
+* **View:** wrong calculate pick radius with distance/zoom. ([d5efa03](https://github.com/iTowns/itowns/commit/d5efa03))
+
+
+### Workflow and chores
+
+* release v2.36.1 ([b0cf534](https://github.com/iTowns/itowns/commit/b0cf534))
+
+
+
+<a name="2.36.0"></a>
+# [2.36.0](https://github.com/iTowns/itowns/compare/v2.35.0...v2.36.0) (2021-11-18)
+
+
+### Features
+
+* **Coordinates:** add methods to calculate distance between coordinates. ([acdf643](https://github.com/iTowns/itowns/commit/acdf643))
+* **Crs:** add isGeocentric method. ([1ab76c8](https://github.com/iTowns/itowns/commit/1ab76c8))
+* **Extent:** add methods to calculate extent dimensions. ([ed583d9](https://github.com/iTowns/itowns/commit/ed583d9))
+* **Label:** add parameter to change labels padding property ([33f8680](https://github.com/iTowns/itowns/commit/33f8680))
+
+
+### Bug Fixes
+
+* **ColorLayer:** fix shader when transparent is true ([1a4f44d](https://github.com/iTowns/itowns/commit/1a4f44d))
+* **ElevationLayer:** scale elevation isn't updated ([26d72da](https://github.com/iTowns/itowns/commit/26d72da))
+* **Ellipsoid:** wrong geodesic distance. ([4d462f2](https://github.com/iTowns/itowns/commit/4d462f2))
+* **Extent:** fix wrong calculating when apply matrix. ([04abdd2](https://github.com/iTowns/itowns/commit/04abdd2))
+* **Feature:** wrong altitude and altitude limits. ([4746e86](https://github.com/iTowns/itowns/commit/4746e86))
+* **Feature2Mesh:** set scale transformation from FeatureCollection. ([0f5cd07](https://github.com/iTowns/itowns/commit/0f5cd07))
+* **FirstPersonControls:** prevent context menu from poping ([94bfd57](https://github.com/iTowns/itowns/commit/94bfd57))
+* **GlobeControls:** fix black screen when zooming outside globe ([3e0f23f](https://github.com/iTowns/itowns/commit/3e0f23f))
+* **label2DRenderer:** add frustum culling in global labels culling. ([5ba4e9d](https://github.com/iTowns/itowns/commit/5ba4e9d))
+* **Point/3Dtiles:** wrong geographical extent property for points cloud and 3Dtiles. ([c663ce4](https://github.com/iTowns/itowns/commit/c663ce4))
+* **Style:** copy order property when copying style ([cab78ba](https://github.com/iTowns/itowns/commit/cab78ba))
+* **VectorTileSource:** set style parent with style Layer ([aba0743](https://github.com/iTowns/itowns/commit/aba0743))
+
+
+### Examples
+
+* **3dtiles_basic:** update 3dtiles sources url ([50d6733](https://github.com/iTowns/itowns/commit/50d6733))
+
+
+### Code Refactoring
+
+* **debug:** remove id text in OBB helper. ([d033279](https://github.com/iTowns/itowns/commit/d033279))
+* **examples:** add wfs labels in 2.5d examples. ([944e412](https://github.com/iTowns/itowns/commit/944e412))
+* **Extent:** throw error if the projection is geocentric. ([e0048f7](https://github.com/iTowns/itowns/commit/e0048f7))
+* **Extent:** use Extent.planarDimensions instead of Extent.dimensions ([023d5fa](https://github.com/iTowns/itowns/commit/023d5fa))
+* **OBBHelper:** remove OBBHelper text. ([1e2fc31](https://github.com/iTowns/itowns/commit/1e2fc31))
+* **TerrainMaterial:** rename fogDepth -> vFogDepth ([7d162ec](https://github.com/iTowns/itowns/commit/7d162ec))
+* **View:** change label margin default. ([8c6edf5](https://github.com/iTowns/itowns/commit/8c6edf5))
+
+
+### Workflow and chores
+
+* release v2.36.0 ([091c59b](https://github.com/iTowns/itowns/commit/091c59b))
+* add contributor. ([323b046](https://github.com/iTowns/itowns/commit/323b046))
+* update packages. ([ef204f9](https://github.com/iTowns/itowns/commit/ef204f9))
+
+
+### Documentation
+
+* **Ellipsoid:** minor fix on geodesicDistance doc ([a0cd2a3](https://github.com/iTowns/itowns/commit/a0cd2a3))
+
+
+
 <a name="2.35.0"></a>
 # [2.35.0](https://github.com/iTowns/itowns/compare/v2.34.0...v2.35.0) (2021-09-16)
 
@@ -459,6 +789,3 @@ previously counted counter-clockwise).
 * Update actions checkout to v2 ([9094edc](https://github.com/iTowns/itowns/commit/9094edc))
 * Update remove-old-artifacts.yml ([0a9911f](https://github.com/iTowns/itowns/commit/0a9911f))
 * Create remove-old-artifacts.yml ([617326c](https://github.com/iTowns/itowns/commit/617326c))
-
-
-

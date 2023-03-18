@@ -16,7 +16,9 @@ global.fetch = fetch;
 global.fetch.Promise = Promise;
 
 // this could be replaced by jsdom.Navigator in https://github.com/iTowns/itowns/pull/1412
-global.navigator = undefined;
+global.navigator = {
+    userAgent: 'firefox',
+};
 
 class DOMElement {
     constructor() {
@@ -36,7 +38,7 @@ class DOMElement {
         document.documentElement = this;
 
         Object.defineProperty(this, 'onload', {
-            set: f => f(),
+            set: (f) => { f(); },
         });
     }
 
@@ -101,7 +103,7 @@ global.document = {
             img.width = 10;
             img.height = 10;
             Object.defineProperty(img, 'src', {
-                set: () => img.emitEvent('load'),
+                set: () => { img.emitEvent('load'); },
             });
             return img;
         }

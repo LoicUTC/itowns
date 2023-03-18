@@ -103,7 +103,7 @@ function drawPoint(ctx, x, y, style = {}, invCtxScale) {
 const coord = new Coordinates('EPSG:4326', 0, 0, 0);
 
 function drawFeature(ctx, feature, extent, style, invCtxScale) {
-    const extentDim = extent.dimensions();
+    const extentDim = extent.planarDimensions();
     const scaleRadius = extentDim.x / ctx.canvas.width;
     const globals = { zoom: extent.zoom };
 
@@ -113,7 +113,10 @@ function drawFeature(ctx, feature, extent, style, invCtxScale) {
             const contextStyle = (geometry.properties.style || style).drawingStylefromContext(context);
 
             if (contextStyle) {
-                if (feature.type === FEATURE_TYPES.POINT) {
+                if (
+                    feature.type === FEATURE_TYPES.POINT
+                    && contextStyle.point
+                ) {
                     // cross multiplication to know in the extent system the real size of
                     // the point
                     const px = (Math.round(contextStyle.point.radius * invCtxScale) || 3 * invCtxScale) * scaleRadius;
@@ -154,7 +157,7 @@ export default {
         if (collection) {
             // A texture is instancied drawn canvas
             // origin and dimension are used to transform the feature's coordinates to canvas's space
-            extent.dimensions(dimension);
+            extent.planarDimensions(dimension);
             const c = document.createElement('canvas');
 
             coord.crs = extent.crs;

@@ -5,13 +5,19 @@
         "view_2d_map": "2D map",
         "view_multiglobe": "Multiple globes",
         "view_multi_25d": "Multiple 2.5D maps",
-        "view_immersive": "Immersive view"
+        "view_immersive": "Immersive view",
+        "view_3d_mns_map" : "Digital surface model"
+    },
+
+    "Geoid": {
+        "geoid_geoidLayer": "Display geoid heights"
     },
 
     "3d Tiles": {
-        "3dtiles_basic": "Basic",
-        "3dtiles_batch_table": "Batch table",
-        "3dtiles_25d": "On 2.5D map"
+        "3dtiles_basic": "on 3D map",
+        "3dtiles_25d": "On 2.5D map",
+        "3dtiles_batch_table": "Batch table Hierarchy extension",
+        "3dtiles_ion": "From Cesium ion"
     },
 
     "Pointcloud": {
@@ -25,22 +31,33 @@
     "Vector tiles": {
         "vector_tile_raster_3d": "Raster on 3D map",
         "vector_tile_raster_2d": "Raster on 2D map",
+        "vector_tile_3d_mesh": "Vector tile to 3d objects",
         "vector_tile_dragndrop": "Drag and drop a style"
     },
 
-    "Source / Stream": {
+    "WFS source": {
         "source_stream_wfs_25d": "WFS to 2.5D objects",
         "source_stream_wfs_3d": "WFS to 3D objects",
         "source_stream_wfs_raster": "WFS to raster"
     },
 
-    "Source / File": {
-        "source_file_gpx_3d": "GPX to 3D objects",
-        "source_file_geojson_3d": "GeoJSON to 3D objects",
-        "source_file_shapefile": "Shapefile to raster",
+    "Specific source options": {
+        "source_file_from_format": "format",
+        "source_file_from_methods": "fetcher and parser"
+    },
+
+    "FileSource": {
         "source_file_geojson_raster": "GeoJSON to raster",
+        "source_file_geojson_3d": "GeoJSON to 3D objects",
+        "source_file_kml_raster": "KML to raster",
         "source_file_gpx_raster": "GPX to raster",
-        "source_file_kml_raster": "KML to raster"
+        "source_file_gpx_3d": "GPX to 3D objects"
+    },
+
+    "Customize FileSource": {
+        "source_file_from_fetched_data": "Handle fetching step",
+        "source_file_from_parsed_data": "Handle parsing step",
+        "source_file_shapefile": "Shapefile case"
     },
 
     "Effects": {
@@ -62,6 +79,13 @@
         "misc_custom_controls": "Define custom controls",
         "misc_custom_label": "Custom label popup",
         "misc_camera_traveling": "Camera traveling"
+    },
+
+    "Widgets": {
+        "widgets_navigation": "Navigation",
+        "widgets_minimap": "Minimap",
+        "widgets_scale": "Scale",
+        "widgets_searchbar": "Searchbar"
     },
 
     "Plugins": {

@@ -57,6 +57,12 @@ class LabelLayer extends Layer {
         this.buildExtent = true;
 
         this.labelDomelement = config.domElement;
+
+        // The margin property defines a space around each label that cannot be occupied by another label.
+        // For example, if some labelLayer has a margin value of 5, there will be at least 10 pixels
+        // between each labels of the layer
+        // TODO : this property should be moved to Style after refactoring style properties structure
+        this.margin = config.margin;
     }
 
     /**
@@ -128,6 +134,7 @@ class LabelLayer extends Layer {
 
                 const label = new Label(content, coord.clone(), style, this.source.sprites);
                 label.layerId = this.id;
+                label.padding = this.margin || label.padding;
 
                 if (f.size == 2) {
                     label.needsAltitude = true;
@@ -168,7 +175,7 @@ class LabelLayer extends Layer {
         const elevationLayer = node.material.getElevationLayer();
         if (elevationLayer && node.layerUpdateState[elevationLayer.id].canTryUpdate()) {
             node.children.forEach((c) => {
-                if (c.isLabel && c.needsAltitude && c.updateElevationFromLayer(this.parent)) {
+                if (c.isLabel && c.needsAltitude && c.updateElevationFromLayer(this.parent, [node])) {
                     c.update3dPosition(context.view.referenceCrs);
                 }
             });
@@ -187,7 +194,6 @@ class LabelLayer extends Layer {
             layer: this,
             extentsSource: extentsDestination,
             view: context.view,
-            threejsLayer: this.threejsLayer,
             requester: node,
         };
 
@@ -208,7 +214,7 @@ class LabelLayer extends Layer {
 
                 labels.forEach((label) => {
                     if (label.needsAltitude) {
-                        label.updateElevationFromLayer(this.parent);
+                        label.updateElevationFromLayer(this.parent, [node]);
                     }
 
                     const present = node.children.find(l => l.isLabel && l.baseContent == label.baseContent);
@@ -283,7 +289,14 @@ class LabelLayer extends Layer {
         }
     }
 
-    delete() {
+    /**
+     * All layer's objects and domElements are removed.
+     * @param {boolean} [clearCache=false] Whether to clear the layer cache or not
+     */
+    delete(clearCache) {
+        if (clearCache) {
+            this.cache.clear();
+        }
         this.domElement.parentElement.removeChild(this.domElement);
 
         this.parent.level0Nodes.forEach(obj => this.removeLabelsFromNodeRecursive(obj));
