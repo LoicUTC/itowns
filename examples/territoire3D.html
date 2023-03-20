@@ -36,12 +36,18 @@
             view.scene.add( ambLight );
 
             // Add one imagery layer to the scene
-            itowns.Fetcher.json('./layers/JSONLayers/Ortho.json').then(function _(config) {
+           /*itowns.Fetcher.json('./layers/JSONLayers/Ortho.json').then(function _(config) {
                 config.source = new itowns.WMTSSource(config.source);
                 var layer = new itowns.ColorLayer('Ortho', config);
                 view.addLayer(layer).then(menuGlobe.addLayerGUI.bind(menuGlobe));
             });
-    
+    */
+            itowns.Fetcher.json('./layers/JSONLayers/Dark.json').then(function _(config) {
+                config.source = new itowns.TMSSource(config.source);
+                var layer = new itowns.ColorLayer('Ortho', config);
+                view.addLayer(layer).then(menuGlobe.addLayerGUI.bind(menuGlobe));
+            });
+
 
             /* Arbres */
     const trunkRadius = 5;
@@ -56,6 +62,8 @@
         const material = new THREE.MeshPhongMaterial( {color: 0x8B4513} );
         const tronc = new THREE.Mesh( geometry, material );
         tronc.rotateX(Math.PI / 2);
+        // hack temporaire
+        tronc.position.z = 280 ;
         tronc.updateMatrix();
         root.add(tronc);
 
@@ -63,7 +71,7 @@
         const geometryCanop = new THREE.SphereGeometry( topHeight, topHeight, 10 );
         const materialCanop = new THREE.MeshPhongMaterial( { color: 0x00aa00 } );
         const top = new THREE.Mesh( geometryCanop, materialCanop );
-        top.position.z = trunkHeight - (topHeight / 3);
+        top.position.z = trunkHeight - (topHeight / 3) + 280;
         top.updateMatrix();
         root.add(top);
 
@@ -75,8 +83,10 @@ function makeRectangle() {
 
     // poteau fake
     const geometry = new THREE.CylinderGeometry( trunkRadius, trunkRadius, trunkHeight, 32 );
-    const material = new THREE.MeshPhongMaterial( {color: 0xff00ff} );
+    const material = new THREE.MeshPhongMaterial( {color: 0xf7c015} );
     const tronc = new THREE.Mesh( geometry, material );
+    // hack temporaire
+    tronc.position.z = 20;
     tronc.rotateX(Math.PI / 2);
     tronc.updateMatrix();
     root.add(tronc);
@@ -88,58 +98,7 @@ function makeRectangle() {
 // Load a gltf model
     // Instantiate a loader
     const loader = new THREE.GLTFLoader();
-
-// Load a glTF resource
-
-loader.load(
-    // resource URL
-    // 'http://localhost:8080/data/lampadaire/scene.gltf',
-    // 'http://localhost:8080/data/giant_low_poly_tree/scene.gltf',
-     'http://localhost:8080/data/tree_low-poly_3d_model/scene.gltf',
-    // called when the resource is loaded
-    (gltf) => {
-
-        console.log(gltf.scene);  
-        gltf.scene.rotateY(Math.PI );
-  
-        gltf.scene.updateMatrix();
-        
-        
-    var styleModel3D = new itowns.Style({
-             //  model: { object:  gltf.scene  }
-             model : { object : makeTree() }
-    });
-
-
-
-    var arbreSource = new itowns.FileSource({
-        url: './layers/JSONLayers/trees.geojson',
-        crs: 'EPSG:4326',
-        fetcher: itowns.Fetcher.json,
-        parser: itowns.GeoJsonParser.parse,
-    });
-
-    var arbreLayer = new itowns.FeatureGeometryLayer('arbre', {
-        name: 'arbre',
-        source: arbreSource,
-        zoom: { min: 7, max : 21},
-        style:  styleModel3D
-    });
-
-    view.addLayer(arbreLayer);
-
-
-    },
-    // called while loading is progressing
-    (xhr) => {
-        console.log(`${xhr.loaded / xhr.total * 100}% loaded`);
-    },
-    // called when loading has errors
-    (error) => {
-        console.log('An error happened :');
-        console.log(error);
-    },
-); 
+    
 var meshes = [];
 var color = new itowns.THREE.Color();
             var tile;
@@ -254,8 +213,38 @@ var color = new itowns.THREE.Color();
                 })
             });
             
-             view.addLayer(wfsBuildingLayer);
+            // view.addLayer(wfsBuildingLayer);
 
+ // ---------- DISPLAY VECTOR TILED BUILDING DATA AS 3D MESHES : ----------
+
+            // Define the source of the building data : those are vector tiled data from the geoportail.
+            const buildingsSource = new itowns.VectorTilesSource({
+                style: 'https://wxs.ign.fr/essentiels/static/vectorTiles/styles/PLAN.IGN/standard.json',
+                // We only want to display buildings related data.
+                filter: (layer) => {
+                    return layer['source-layer'].includes('bati_surf')
+                        && layer.paint["fill-color"];
+                },
+            });
+
+            // Create a FeatureGeometryLayer to support building data.
+            var buildingsLayer = new itowns.FeatureGeometryLayer('VTBuilding',{
+                source: buildingsSource,
+                zoom: { min: 15 },
+                accurate: false,
+                style: new itowns.Style({
+                    fill: {
+                        base_altitude: (p) => p.alti_sol || 0,
+                        extrusion_height: (p) => p.hauteur || 0,
+                    }
+                })
+            });
+
+            // Add the FeatureGeometryLayer to the scene and to the debug menu.
+            view.addLayer(buildingsLayer).then((layer) => {
+                const gui = debug.GeometryDebug.createGeometryDebugUI(debugMenu.gui, view, layer);
+                debug.GeometryDebug.addWireFrameCheckbox(gui, view, layer);
+            })
 
 
 
@@ -285,9 +274,9 @@ var color = new itowns.THREE.Color();
 
 loader.load(
     // resource URL
-    'http://localhost:8080/data/lampadaire/scene.gltf',
+    // 'http://localhost:8080/data/lampadaire/scene.gltf',
     //  'http://localhost:8080/data/giant_low_poly_tree/scene.gltf',
-    // 'http://localhost:8080/data/tree_low-poly_3d_model/scene.gltf',
+     'http://localhost:8080/data/tree_low-poly_3d_model/scene.gltf',
     // called when the resource is loaded
     (gltf) => {
         // styleModel3D.model.object = gltf.scene; 
@@ -303,7 +292,7 @@ loader.load(
         
     var styleModel3D = new itowns.Style({
             // model: { object:  gltf.scene }
-            model : { object : makeRectangle()}
+             model : { object : makeRectangle()}
     });
 
     var lightSource = new itowns.FileSource({
@@ -321,6 +310,61 @@ loader.load(
     });
 
     view.addLayer(lightLayer);
+
+
+    },
+    // called while loading is progressing
+    (xhr) => {
+        console.log(`${xhr.loaded / xhr.total * 100}% loaded`);
+    },
+    // called when loading has errors
+    (error) => {
+        console.log('An error happened :');
+        console.log(error);
+    },
+); 
+
+// Load a glTF resource
+
+loader.load(
+    // resource URL
+    // 'http://localhost:8080/data/lampadaire/scene.gltf',
+    // 'http://localhost:8080/data/giant_low_poly_tree/scene.gltf',
+     'http://localhost:8080/data/tree_low-poly_3d_model/scene.gltf',
+    // called when the resource is loaded
+    (gltf) => {
+
+        console.log(gltf.scene);  
+        // gltf.scene.rotateY(Math.PI );
+
+        gltf.scene.updateMatrix();
+        gltf.scene.updateMatrixWorld();
+        
+        
+    var styleModel3D = new itowns.Style({
+             // model: { object:  gltf.scene  }
+              model : { object : makeTree() }
+             // model : { object : makeRectangle()}
+    });
+
+
+
+    var arbreSource = new itowns.FileSource({
+        url: './layers/JSONLayers/trees.geojson',
+        // url: './layers/JSONLayers/point lumineux bordeaux 2019.geojson',
+        crs: 'EPSG:4326',
+        fetcher: itowns.Fetcher.json,
+        parser: itowns.GeoJsonParser.parse,
+    });
+
+    var arbreLayer = new itowns.FeatureGeometryLayer('arbre', {
+        name: 'arbre',
+        source: arbreSource,
+        zoom: { min: 7, max : 21},
+        style:  styleModel3D
+    });
+
+    view.addLayer(arbreLayer);
 
 
     },

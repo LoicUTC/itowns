@@ -147,9 +147,9 @@ loader.load(
 
 loader.load(
     // resource URL
-    'http://localhost:8080/data/lampadaire/scene.gltf',
+    // 'http://localhost:8080/data/lampadaire/scene.gltf',
     //  'http://localhost:8080/data/giant_low_poly_tree/scene.gltf',
-    // 'http://localhost:8080/data/tree_low-poly_3d_model/scene.gltf',
+    'http://localhost:8080/data/tree_low-poly_3d_model/scene.gltf',
     // called when the resource is loaded
     (gltf) => {
         // styleModel3D.model.object = gltf.scene; 
@@ -164,8 +164,8 @@ loader.load(
         
         
     var styleModel3D = new itowns.Style({
-            // model: { object:  gltf.scene }
-            model : { object : makeRectangle()}
+            model: { object:  gltf.scene }
+            // model : { object : makeRectangle()}
     });
 
     var lightSource = new itowns.FileSource({
